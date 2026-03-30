@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabase';
 import { Profile } from '@/types/auth';
 
 interface AuthState {
@@ -29,6 +29,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   initialize: async () => {
     try {
+      const supabase = getSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
       set({ session, user: session?.user ?? null, isLoading: false });
 
@@ -36,7 +37,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         get().fetchProfile();
       }
 
-      supabase.auth.onAuthStateChange((_event, session) => {
+      supabase.auth.onAuthStateChange((_event: string, session: Session | null) => {
         set({ session, user: session?.user ?? null });
         if (session?.user) {
           get().fetchProfile();
@@ -48,16 +49,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signIn: async (email: string, password: string) => {
+    const supabase = getSupabaseClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
   },
 
   signUp: async (email: string, password: string) => {
+    const supabase = getSupabaseClient();
     const { error } = await supabase.auth.signUp({ email, password });
     if (error) throw error;
   },
 
   signOut: async () => {
+    const supabase = getSupabaseClient();
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     set({ session: null, user: null, profile: null, isOnboarded: false });
@@ -69,6 +73,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const user = get().user;
     if (!user) return;
 
+    const supabase = getSupabaseClient();
     const { data } = await supabase
       .from('profiles')
       .select('*')
@@ -84,6 +89,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const user = get().user;
     if (!user) return;
 
+    const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from('profiles')
       .upsert({ id: user.id, ...updates, updated_at: new Date().toISOString() })

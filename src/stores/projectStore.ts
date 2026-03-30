@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { Project } from '@/types/project';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabase';
 
 interface ProjectDocument {
   id: string;
@@ -63,6 +63,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   uploadDocument: async (projectId, file) => {
     try {
+      const supabase = getSupabaseClient();
       const ext = file.name.split('.').pop() || 'file';
       const path = `projects/${projectId}/${Date.now()}.${ext}`;
 
