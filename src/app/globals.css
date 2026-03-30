@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+@theme {
+  --color-dark-navy: #29353C;
+  --color-steel-blue: #44576D;
+  --color-slate-blue-gray: #768A96;
+  --color-ice-blue: #AAC7D8;
+  --color-frost-white: #DFEBF6;
+  --color-light-gray: #E6E6E6;
+  --color-surface: #FFFFFF;
+  --color-approved: #34C759;
+  --color-pending: #FF9F0A;
+  --color-rejected: #FF3B30;
+  --color-overlay: rgba(41, 53, 60, 0.6);
+
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-body);
+    color: var(--color-dark-navy);
+    background-color: var(--color-frost-white);
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-2xl p-6 shadow-sm;
+    box-shadow: 0 4px 12px rgba(41, 53, 60, 0.08);
+  }
+
+  .card-subtle {
+    @apply bg-white rounded-xl p-4;
+    box-shadow: 0 2px 6px rgba(41, 53, 60, 0.05);
+  }
+
+  .btn-primary {
+    @apply bg-steel-blue text-white font-semibold py-3 px-6 rounded-xl
+           hover:bg-dark-navy transition-colors duration-200 w-full text-center;
+  }
+
+  .btn-secondary {
+    @apply bg-frost-white text-steel-blue font-semibold py-3 px-6 rounded-xl
+           hover:bg-ice-blue/30 transition-colors duration-200 border border-light-gray w-full text-center;
+  }
+
+  .btn-ghost {
+    @apply text-steel-blue font-medium py-3 px-6 rounded-xl
+           hover:bg-frost-white transition-colors duration-200 w-full text-center;
+  }
+
+  .btn-danger {
+    @apply bg-rejected text-white font-semibold py-3 px-6 rounded-xl
+           hover:bg-red-600 transition-colors duration-200 w-full text-center;
+  }
+
+  .input-field {
+    @apply w-full bg-white border border-light-gray rounded-xl px-4 py-3
+           text-dark-navy placeholder:text-slate-blue-gray
+           focus:outline-none focus:border-steel-blue focus:ring-1 focus:ring-steel-blue
+           transition-colors duration-200;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+
+  .badge-active {
+    @apply bg-approved/15 text-approved;
+  }
+
+  .badge-pending {
+    @apply bg-pending/15 text-pending;
+  }
+
+  .badge-overdue {
+    @apply bg-rejected/15 text-rejected;
+  }
+
+  .badge-approved {
+    @apply bg-approved/15 text-approved;
+  }
+
+  .segmented-control {
+    @apply flex bg-frost-white rounded-full p-0.5;
+  }
+
+  .segment {
+    @apply flex-1 flex items-center justify-center gap-1 py-2 rounded-full
+           text-sm font-medium text-slate-blue-gray cursor-pointer transition-all;
+  }
+
+  .segment-active {
+    @apply bg-white text-steel-blue shadow-sm;
+  }
+}
