@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
@@ -55,6 +55,11 @@ export default function DashboardPage() {
 
   const displayName = profile?.full_name || profile?.first_name || 'Builder';
 
+  const [greeting, setGreeting] = useState('Welcome');
+  useEffect(() => {
+    setGreeting(getGreeting());
+  }, []);
+
   const allProjects = useMemo(() => {
     return [...userProjects, ...mockProjects].slice(0, 6);
   }, [userProjects]);
@@ -71,7 +76,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-dark-navy">
-          {getGreeting()}, {displayName}
+          {greeting}, {displayName}
         </h1>
         <p className="text-slate-blue-gray mt-1">
           Here&apos;s what&apos;s happening across your projects
