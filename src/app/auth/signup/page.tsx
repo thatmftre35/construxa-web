@@ -78,6 +78,7 @@ export default function SignupPage() {
     setIsLoading(true);
     try {
       await signUp(email, password);
+      router.refresh();
       router.push('/auth/setup-profile');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Sign up failed';

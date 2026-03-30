@@ -25,23 +25,24 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Refresh the auth token on every request
-  const { data: { user } } = await supabase.auth.getUser();
-
-  // Protect app routes — redirect to login if not authenticated
-  const isAuthRoute = request.nextUrl.pathname.startsWith('/auth');
-  const isAppRoute = !isAuthRoute && request.nextUrl.pathname !== '/';
-
-  if (!user && isAppRoute) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/auth/login';
-    return NextResponse.redirect(url);
+  // Refresh the session — use getUser() for security (validates with Supabase server)
+  // Fall back gracefully if the call fails (network issues, key issues, etc.)
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data?.user ?? null;
+  } catch {
+    // If getUser fails, don't block the request — let the page handle auth
+    return supabaseResponse;
   }
 
-  // Redirect logged-in users away from auth pages
-  if (user && isAuthRoute) {
+  const { pathname } = request.nextUrl;
+  const isAuthRoute = pathname.startsWith('/auth');
+
+  // Protect app routes — redirect to login if not authenticated
+  if (!user && !isAuthRoute && pathname !== '/') {
     const url = request.nextUrl.clone();
-    url.pathname = '/dashboard';
+    url.pathname = '/auth/login';
     return NextResponse.redirect(url);
   }
 

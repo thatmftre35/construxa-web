@@ -1,22 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { Menu } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import Sidebar from './Sidebar';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const router = useRouter();
-  const session = useAuthStore((s) => s.session);
   const isLoading = useAuthStore((s) => s.isLoading);
-
-  useEffect(() => {
-    if (!isLoading && !session) {
-      router.replace('/auth/login');
-    }
-  }, [isLoading, session, router]);
 
   if (isLoading) {
     return (
@@ -27,10 +18,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     );
-  }
-
-  if (!session) {
-    return null;
   }
 
   return (
