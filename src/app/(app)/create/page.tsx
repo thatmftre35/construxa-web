@@ -85,7 +85,7 @@ export default function CreatePage() {
     }
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const newErrors: typeof errors = {};
     if (!name.trim()) newErrors.name = 'Project name is required';
     if (!address.trim()) newErrors.address = 'Address is required';
@@ -96,24 +96,29 @@ export default function CreatePage() {
     }
 
     setErrors({});
-    const project = addProject({
-      name: name.trim(),
-      address: address.trim(),
-      city: city.trim(),
-      state: state.trim(),
-      description: description.trim(),
-      value: value.trim(),
-      startDate: startDate || new Date().toISOString().split('T')[0],
-      completionDate: null,
-      stage: 'Pre-Construction',
-      sector: 'General',
-      squareFootage: '',
-      trades: [],
-      imageUrl: null,
-    });
+    try {
+      const project = await addProject({
+        name: name.trim(),
+        address: address.trim(),
+        city: city.trim(),
+        state: state.trim(),
+        description: description.trim(),
+        value: value.trim(),
+        startDate: startDate || new Date().toISOString().split('T')[0],
+        completionDate: null,
+        stage: 'Pre-Construction',
+        sector: 'General',
+        squareFootage: '',
+        trades: [],
+        imageUrl: null,
+      });
 
-    setCreatedId(project.id);
-    setSuccess(true);
+      setCreatedId(project.id);
+      setSuccess(true);
+    } catch (err) {
+      console.error('Failed to create project:', err);
+      setErrors({ name: 'Failed to save project. Please try again.' });
+    }
   }
 
   const addLaterFields = [
