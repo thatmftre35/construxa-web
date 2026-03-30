@@ -83,10 +83,12 @@ export default function ProjectDetailPage() {
   const params = useParams();
   const projectId = params.id as string;
 
-  const storeProject = useProjectStore((s) => s.getProject(projectId));
-  const storeDocuments = useProjectStore((s) => s.getProjectDocuments(projectId));
+  const projects = useProjectStore((s) => s.projects);
+  const documents = useProjectStore((s) => s.documents);
   const uploadDocument = useProjectStore((s) => s.uploadDocument);
 
+  const storeProject = projects.find((p) => p.id === projectId);
+  const storeDocuments = documents.filter((d) => d.projectId === projectId);
   const project = storeProject ?? mockProjects.find((p) => p.id === projectId);
 
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
