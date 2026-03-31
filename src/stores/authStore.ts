@@ -66,9 +66,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (error) throw error;
     set({ session: null, user: null, profile: null, isOnboarded: false });
 
-    // Reset project store so the next user gets a fresh load
+    // Reset stores so the next user gets a fresh load
     const { useProjectStore } = await import('@/stores/projectStore');
+    const { useEventStore } = await import('@/stores/eventStore');
+    const { useTaskStore } = await import('@/stores/taskStore');
     useProjectStore.setState({ projects: [], documents: [], isLoaded: false });
+    useEventStore.setState({ events: [], isLoaded: false });
+    useTaskStore.setState({ tasks: [], isLoaded: false });
   },
 
   setOnboarded: (value: boolean) => set({ isOnboarded: value }),

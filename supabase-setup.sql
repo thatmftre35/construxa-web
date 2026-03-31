@@ -93,6 +93,16 @@ create policy "Users can view own documents"
   on public.documents for select
   using (auth.uid() = user_id);
 
+create policy "Project owners can view all project documents"
+  on public.documents for select
+  using (
+    exists (
+      select 1 from public.projects
+      where projects.id = documents.project_id
+        and projects.user_id = auth.uid()
+    )
+  );
+
 create policy "Users can insert own documents"
   on public.documents for insert
   with check (auth.uid() = user_id);
@@ -244,3 +254,71 @@ create trigger on_profile_created_accept_invitations
   after insert on public.profiles
   for each row
   execute function public.accept_pending_invitations();
+
+-- ============================================================
+-- Events table (alerts / calendar events)
+-- ============================================================
+create table if not exists public.events (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  project_id uuid references public.projects(id) on delete cascade not null,
+  type text not null,
+  description text not null default '',
+  event_date timestamptz not null,
+  completed boolean not null default false,
+  created_at timestamptz default now() not null,
+  updated_at timestamptz default now() not null
+);
+
+alter table public.events enable row level security;
+
+create policy "Users can view own events"
+  on public.events for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert own events"
+  on public.events for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update own events"
+  on public.events for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete own events"
+  on public.events for delete
+  using (auth.uid() = user_id);
+
+-- ============================================================
+-- Tasks table
+-- ============================================================
+create table if not exists public.tasks (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  project_id uuid references public.projects(id) on delete cascade not null,
+  title text not null,
+  description text not null default '',
+  assignee text not null default '',
+  due_date timestamptz not null,
+  urgency text not null default 'low',
+  completed boolean not null default false,
+  created_at timestamptz default now() not null,
+  updated_at timestamptz default now() not null
+);
+
+alter table public.tasks enable row level security;
+
+create policy "Users can view own tasks"
+  on public.tasks for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert own tasks"
+  on public.tasks for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update own tasks"
+  on public.tasks for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete own tasks"
+  on public.tasks for delete
+  using (auth.uid() = user_id);

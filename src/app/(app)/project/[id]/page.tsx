@@ -26,7 +26,9 @@ import {
 import type { ProjectDocument } from '@/stores/projectStore';
 import type { Project } from '@/types/project';
 import { useProjectStore } from '@/stores/projectStore';
-import { mockTasks, mockDeliveries } from '@/constants/mockData';
+import { useTaskStore } from '@/stores/taskStore';
+import { useEventStore } from '@/stores/eventStore';
+import { formatEventDate } from '@/lib/dateUtils';
 import Badge from '@/components/ui/Badge';
 import Card from '@/components/ui/Card';
 import ShareModal from '@/components/project/ShareModal';
@@ -48,13 +50,6 @@ const folders: DocumentFolder[] = [
   { name: 'Reports', icon: <FileText className="w-6 h-6" />, count: 7 },
 ];
 
-const priorityColors: Record<string, string> = {
-  urgent: '#FF3B30',
-  high: '#FF6B35',
-  medium: 'var(--color-pending)',
-  low: '#34C759',
-};
-
 const fadeUp = {
   initial: { opacity: 0, y: 16 },
   animate: { opacity: 1, y: 0 },
@@ -72,18 +67,7 @@ function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function mapTaskStatus(status: string): 'active' | 'pending' | 'overdue' | 'approved' {
-  switch (status) {
-    case 'completed': return 'approved';
-    case 'in_progress': return 'active';
-    case 'overdue': return 'overdue';
-    default: return 'pending';
-  }
-}
 
-function mapDeliveryStatus(status: string): 'active' | 'pending' {
-  return status === 'scheduled' ? 'active' : 'pending';
-}
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -123,9 +107,10 @@ export default function ProjectDetailPage() {
     );
   }
 
-  const projectTasks = mockTasks.filter(
-    (t) => t.projectId === projectId || t.projectName === project.name
-  );
+  const allTasks = useTaskStore((s) => s.tasks);
+  const allEvents = useEventStore((s) => s.events);
+  const projectTasks = allTasks.filter((t) => t.projectId === projectId);
+  const projectEvents = allEvents.filter((e) => e.projectId === projectId);
 
   const fullAddress = `${project.address}, ${project.city}, ${project.state}`;
 
@@ -219,6 +204,7 @@ export default function ProjectDetailPage() {
             project={project}
             fullAddress={fullAddress}
             tasks={projectTasks}
+            events={projectEvents}
             documentCount={storeDocuments.length}
           />
         ) : (
@@ -245,11 +231,13 @@ function DashboardTab({
   project,
   fullAddress,
   tasks,
+  events: projectEvents,
   documentCount,
 }: {
   project: Project;
   fullAddress: string;
-  tasks: typeof mockTasks;
+  tasks: import('@/types/project').Task[];
+  events: import('@/types/project').Event[];
   documentCount: number;
 }) {
   return (
@@ -310,16 +298,14 @@ function DashboardTab({
               {tasks.map((task) => (
                 <div key={task.id} className="flex items-center gap-3 px-5 py-4">
                   <span
-                    className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: priorityColors[task.priority] }}
+                    className={`w-2.5 h-2.5 rounded-full shrink-0 ${task.urgency === 'high' ? 'bg-rejected' : task.urgency === 'moderate' ? 'bg-pending' : 'bg-approved'}`}
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-dark-navy truncate">{task.title}</p>
                     <p className="text-xs text-slate-blue-gray mt-0.5">
-                      {task.assignee} &middot; {formatDate(task.dueDate)}
+                      {task.assignee || 'Unassigned'} &middot; {formatEventDate(task.dueDate)}
                     </p>
                   </div>
-                  <Badge status={mapTaskStatus(task.status)} size="small" />
                 </div>
               ))}
             </div>
@@ -327,36 +313,28 @@ function DashboardTab({
         )}
       </motion.div>
 
-      {/* Deliveries */}
-      <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.1 }}>
-        <SectionHeader
-          icon={<Clock className="w-5 h-5" />}
-          title="Deliveries"
-          count={mockDeliveries.length}
-        />
-        <Card padding={false}>
-          <div className="divide-y divide-light-gray">
-            {mockDeliveries.map((d) => (
-              <div key={d.id} className="flex items-center gap-3 px-5 py-4">
-                <div className="w-9 h-9 rounded-xl bg-frost-white flex items-center justify-center shrink-0">
-                  <Wrench className="w-4 h-4 text-steel-blue" />
+      {/* Events */}
+      {projectEvents.length > 0 && (
+        <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.1 }}>
+          <SectionHeader
+            icon={<Clock className="w-5 h-5" />}
+            title="Events"
+            count={projectEvents.length}
+          />
+          <Card padding={false}>
+            <div className="divide-y divide-light-gray">
+              {projectEvents.map((event) => (
+                <div key={event.id} className="flex items-center gap-3 px-5 py-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-dark-navy truncate">{event.description || event.type}</p>
+                    <p className="text-xs text-slate-blue-gray mt-0.5">{formatEventDate(event.eventDate)}</p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-dark-navy truncate">{d.item}</p>
-                  <p className="text-xs text-slate-blue-gray mt-0.5">
-                    {d.supplier} &middot; {d.date}
-                  </p>
-                </div>
-                <Badge
-                  status={mapDeliveryStatus(d.status)}
-                  label={d.status.charAt(0).toUpperCase() + d.status.slice(1)}
-                  size="small"
-                />
-              </div>
-            ))}
-          </div>
-        </Card>
-      </motion.div>
+              ))}
+            </div>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Trades */}
       {project.trades && project.trades.length > 0 && (

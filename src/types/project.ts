@@ -19,6 +19,8 @@ export interface Project {
   isShared?: boolean;
 }
 
+export type TaskUrgency = 'low' | 'moderate' | 'high';
+
 export interface Task {
   id: string;
   projectId: string;
@@ -27,8 +29,34 @@ export interface Task {
   description: string;
   assignee: string;
   dueDate: string;
-  status: 'todo' | 'in_progress' | 'completed' | 'overdue';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
+  urgency: TaskUrgency;
+  completed: boolean;
+  createdAt: string;
+}
+
+export type EventType =
+  | 'inspection'
+  | 'deadline'
+  | 'safety_training'
+  | 'concrete_pour'
+  | 'meeting'
+  | 'walkthrough'
+  | 'testing'
+  | 'equipment_delivery'
+  | 'material_delivery'
+  | 'financial'
+  | 'other';
+
+export interface Event {
+  id: string;
+  userId: string;
+  projectId: string;
+  projectName: string;
+  type: EventType;
+  description: string;
+  eventDate: string;
+  completed: boolean;
+  createdAt: string;
 }
 
 export interface Alert {

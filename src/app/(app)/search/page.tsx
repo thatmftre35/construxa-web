@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Building2, ClipboardList, X } from 'lucide-react';
-import { mockTasks } from '@/constants/mockData';
+import { useTaskStore } from '@/stores/taskStore';
 import { useProjectStore } from '@/stores/projectStore';
 import Badge from '@/components/ui/Badge';
 import Card from '@/components/ui/Card';
@@ -34,15 +34,16 @@ export default function SearchPage() {
     );
   }, [query]);
 
+  const allTasks = useTaskStore((s) => s.tasks);
   const filteredTasks = useMemo(() => {
     if (!query.trim()) return [];
     const q = query.toLowerCase();
-    return mockTasks.filter(
+    return allTasks.filter(
       (t) =>
         t.title.toLowerCase().includes(q) ||
         t.projectName.toLowerCase().includes(q)
     );
-  }, [query]);
+  }, [query, allTasks]);
 
   const hasResults = filteredProjects.length > 0 || filteredTasks.length > 0;
   const showProjects = activeFilter === 'All' || activeFilter === 'Projects';
