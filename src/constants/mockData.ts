@@ -80,63 +80,7 @@ export const mockProjects: Project[] = [
   },
 ];
 
-export const mockTasks: Task[] = [
-  {
-    id: '1',
-    projectId: '1',
-    projectName: 'Riverside Tower',
-    title: 'Submit rebar inspection report',
-    description: 'Level 3 rebar placement needs sign-off before pour',
-    assignee: 'Mike Torres',
-    dueDate: '2026-03-28',
-    status: 'overdue',
-    priority: 'urgent',
-  },
-  {
-    id: '2',
-    projectId: '2',
-    projectName: 'Metro Health Campus',
-    title: 'Review MEP coordination drawings',
-    description: 'Clash detection review meeting with subs',
-    assignee: 'Sarah Chen',
-    dueDate: '2026-03-29',
-    status: 'in_progress',
-    priority: 'high',
-  },
-  {
-    id: '3',
-    projectId: '1',
-    projectName: 'Riverside Tower',
-    title: 'Schedule crane inspection',
-    description: 'Monthly tower crane safety certification',
-    assignee: 'James Wilson',
-    dueDate: '2026-04-01',
-    status: 'todo',
-    priority: 'medium',
-  },
-  {
-    id: '4',
-    projectId: '4',
-    projectName: 'Summit Office Park',
-    title: 'Approve flooring samples',
-    description: 'Client walkthrough for Bldg A lobby finishes',
-    assignee: 'You',
-    dueDate: '2026-03-30',
-    status: 'todo',
-    priority: 'medium',
-  },
-  {
-    id: '5',
-    projectId: '3',
-    projectName: 'Greenfield Distribution',
-    title: 'Update grading plan',
-    description: 'Revised stormwater management per civil engineer feedback',
-    assignee: 'David Park',
-    dueDate: '2026-04-02',
-    status: 'todo',
-    priority: 'low',
-  },
-];
+export const mockTasks: Task[] = [];
 
 export const mockAlerts: Alert[] = [
   {
