@@ -24,8 +24,9 @@ import {
   Share2,
 } from 'lucide-react';
 import type { ProjectDocument } from '@/stores/projectStore';
+import type { Project } from '@/types/project';
 import { useProjectStore } from '@/stores/projectStore';
-import { mockProjects, mockTasks, mockDeliveries } from '@/constants/mockData';
+import { mockTasks, mockDeliveries } from '@/constants/mockData';
 import Badge from '@/components/ui/Badge';
 import Card from '@/components/ui/Card';
 import ShareModal from '@/components/project/ShareModal';
@@ -100,7 +101,7 @@ export default function ProjectDetailPage() {
 
   const storeProject = projects.find((p) => p.id === projectId);
   const storeDocuments = documents.filter((d) => d.projectId === projectId);
-  const project = storeProject ?? mockProjects.find((p) => p.id === projectId);
+  const project = storeProject;
 
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
@@ -246,7 +247,7 @@ function DashboardTab({
   tasks,
   documentCount,
 }: {
-  project: NonNullable<ReturnType<typeof mockProjects.find>>;
+  project: Project;
   fullAddress: string;
   tasks: typeof mockTasks;
   documentCount: number;

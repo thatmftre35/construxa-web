@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useProjectStore } from '@/stores/projectStore';
-import { mockProjects, mockTasks, mockAlerts } from '@/constants/mockData';
+import { mockTasks, mockAlerts } from '@/constants/mockData';
 import Badge from '@/components/ui/Badge';
 import Card from '@/components/ui/Card';
 
@@ -61,7 +61,7 @@ export default function DashboardPage() {
   }, []);
 
   const allProjects = useMemo(() => {
-    return [...userProjects, ...mockProjects].slice(0, 6);
+    return userProjects.slice(0, 6);
   }, [userProjects]);
 
   const tasks = mockTasks.slice(0, 4);

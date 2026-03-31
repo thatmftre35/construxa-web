@@ -3,7 +3,8 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Building2, ClipboardList, X } from 'lucide-react';
-import { mockProjects, mockTasks } from '@/constants/mockData';
+import { mockTasks } from '@/constants/mockData';
+import { useProjectStore } from '@/stores/projectStore';
 import Badge from '@/components/ui/Badge';
 import Card from '@/components/ui/Card';
 
@@ -20,11 +21,12 @@ const recentSearches = [
 export default function SearchPage() {
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterTab>('All');
+  const projects = useProjectStore((s) => s.projects);
 
   const filteredProjects = useMemo(() => {
     if (!query.trim()) return [];
     const q = query.toLowerCase();
-    return mockProjects.filter(
+    return projects.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
         p.city.toLowerCase().includes(q) ||
