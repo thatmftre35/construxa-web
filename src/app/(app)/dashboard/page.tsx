@@ -158,11 +158,16 @@ export default function DashboardPage() {
                       {project.city}, {project.state}
                     </p>
                   </div>
-                  <Badge
-                    status="active"
-                    label={project.stage}
-                    size="small"
-                  />
+                  <div className="flex items-center gap-2 shrink-0">
+                    {project.isShared && (
+                      <Badge status="pending" label="Shared" size="small" />
+                    )}
+                    <Badge
+                      status="active"
+                      label={project.stage}
+                      size="small"
+                    />
+                  </div>
                 </div>
                 {/* Progress bar */}
                 <div className="mt-4">

@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import { Project } from '@/types/project';
 import { getSupabaseClient } from '@/lib/supabase';
 
-interface ProjectDocument {
+export interface ProjectDocument {
   id: string;
   projectId: string;
   name: string;
@@ -12,7 +12,7 @@ interface ProjectDocument {
   type: string;
   size: number;
   uploadedAt: string;
-  supabasePath?: string;
+  storagePath?: string;
 }
 
 // Maps Supabase row to our Project type
@@ -49,6 +49,19 @@ function formatTimeAgo(dateStr: string): string {
   return `${days} day${days > 1 ? 's' : ''} ago`;
 }
 
+function rowToDocument(row: Record<string, unknown>): ProjectDocument {
+  return {
+    id: row.id as string,
+    projectId: row.project_id as string,
+    name: row.name as string,
+    url: '', // populated via signed URL after fetch
+    type: row.type as string,
+    size: row.size as number,
+    uploadedAt: row.created_at as string,
+    storagePath: row.storage_path as string,
+  };
+}
+
 interface ProjectState {
   projects: Project[];
   documents: ProjectDocument[];
@@ -57,11 +70,9 @@ interface ProjectState {
   addProject: (project: Omit<Project, 'id' | 'lastActivity' | 'progress' | 'status'>) => Promise<Project>;
   getProject: (id: string) => Project | undefined;
   getProjectDocuments: (projectId: string) => ProjectDocument[];
-  addDocument: (doc: Omit<ProjectDocument, 'id' | 'uploadedAt'>) => void;
+  fetchDocuments: (projectId: string) => Promise<void>;
   uploadDocument: (projectId: string, file: File) => Promise<ProjectDocument | null>;
 }
-
-let nextDocId = 100;
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   projects: [],
@@ -71,6 +82,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   fetchProjects: async () => {
     try {
       const supabase = getSupabaseClient();
+      const { data: { user } } = await supabase.auth.getUser();
       const { data, error } = await supabase
         .from('projects')
         .select('*')
@@ -82,7 +94,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         return;
       }
 
-      const projects = (data || []).map(rowToProject);
+      const projects = (data || []).map((row: Record<string, unknown>) => ({
+        ...rowToProject(row),
+        isShared: user ? row.user_id !== user.id : false,
+      }));
       set({ projects, isLoaded: true });
     } catch (err) {
       console.warn('Error fetching projects:', err);
@@ -136,40 +151,107 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     return get().documents.filter((d) => d.projectId === projectId);
   },
 
-  addDocument: (doc) => {
-    const newDoc: ProjectDocument = {
-      ...doc,
-      id: String(nextDocId++),
-      uploadedAt: new Date().toISOString(),
-    };
-    set((state) => ({ documents: [...state.documents, newDoc] }));
+  fetchDocuments: async (projectId) => {
+    try {
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.warn('Failed to fetch documents:', error.message);
+        return;
+      }
+
+      const docs = (data || []).map(rowToDocument);
+
+      // Generate signed URLs for each document
+      const docsWithUrls = await Promise.all(
+        docs.map(async (doc: ProjectDocument) => {
+          if (doc.storagePath) {
+            const { data: urlData } = await supabase.storage
+              .from('documents')
+              .createSignedUrl(doc.storagePath, 3600);
+            if (urlData?.signedUrl) {
+              return { ...doc, url: urlData.signedUrl };
+            }
+          }
+          return doc;
+        })
+      );
+
+      // Replace documents for this project, keep others
+      set((state) => ({
+        documents: [
+          ...state.documents.filter((d) => d.projectId !== projectId),
+          ...docsWithUrls,
+        ],
+      }));
+    } catch (err) {
+      console.warn('Error fetching documents:', err);
+    }
   },
 
   uploadDocument: async (projectId, file) => {
     try {
       const supabase = getSupabaseClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
       const ext = file.name.split('.').pop() || 'file';
       const path = `projects/${projectId}/${Date.now()}.${ext}`;
 
-      const { data, error } = await supabase.storage
+      const { data: storageData, error: storageError } = await supabase.storage
         .from('documents')
         .upload(path, file, { contentType: file.type });
 
-      if (error) {
-        console.warn('Supabase upload failed, storing locally:', error.message);
+      if (storageError) {
+        console.warn('Supabase storage upload failed:', storageError.message);
       }
 
-      const url = URL.createObjectURL(file);
+      const storagePath = storageData?.path || null;
+
+      // Insert metadata into documents table
+      const { data: docRow, error: dbError } = await supabase
+        .from('documents')
+        .insert({
+          project_id: projectId,
+          user_id: user.id,
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          storage_path: storagePath,
+          folder: '',
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        console.warn('Failed to save document metadata:', dbError.message);
+      }
+
+      // Get signed URL for display
+      let url = URL.createObjectURL(file);
+      if (storagePath) {
+        const { data: urlData } = await supabase.storage
+          .from('documents')
+          .createSignedUrl(storagePath, 3600);
+        if (urlData?.signedUrl) {
+          url = urlData.signedUrl;
+        }
+      }
 
       const newDoc: ProjectDocument = {
-        id: String(nextDocId++),
+        id: docRow?.id || String(Date.now()),
         projectId,
         name: file.name,
         url,
         type: file.type,
         size: file.size,
         uploadedAt: new Date().toISOString(),
-        supabasePath: data?.path,
+        storagePath: storagePath || undefined,
       };
 
       set((state) => ({ documents: [...state.documents, newDoc] }));
@@ -178,7 +260,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       console.warn('Upload error:', error);
       const url = URL.createObjectURL(file);
       const newDoc: ProjectDocument = {
-        id: String(nextDocId++),
+        id: String(Date.now()),
         projectId,
         name: file.name,
         url,

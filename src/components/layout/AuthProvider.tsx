@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { useProjectStore } from '@/stores/projectStore';
+import { acceptPendingInvitations } from '@/lib/sharing';
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
   const initialize = useAuthStore((s) => s.initialize);
@@ -14,10 +15,12 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     initialize();
   }, [initialize]);
 
-  // Fetch projects once authenticated
+  // Fetch projects once authenticated, and accept any pending invitations
   useEffect(() => {
     if (session && !isLoaded) {
-      fetchProjects();
+      acceptPendingInvitations().then(() => {
+        fetchProjects();
+      });
     }
   }, [session, isLoaded, fetchProjects]);
 

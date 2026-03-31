@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -19,11 +19,16 @@ import {
   File,
   Image as ImageIcon,
   Cloud,
+  X,
+  Download,
+  Share2,
 } from 'lucide-react';
+import type { ProjectDocument } from '@/stores/projectStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { mockProjects, mockTasks, mockDeliveries } from '@/constants/mockData';
 import Badge from '@/components/ui/Badge';
 import Card from '@/components/ui/Card';
+import ShareModal from '@/components/project/ShareModal';
 
 type TabId = 'dashboard' | 'documents';
 
@@ -86,6 +91,12 @@ export default function ProjectDetailPage() {
   const projects = useProjectStore((s) => s.projects);
   const documents = useProjectStore((s) => s.documents);
   const uploadDocument = useProjectStore((s) => s.uploadDocument);
+  const fetchDocuments = useProjectStore((s) => s.fetchDocuments);
+
+  // Fetch documents from DB on mount
+  useEffect(() => {
+    if (projectId) fetchDocuments(projectId);
+  }, [projectId, fetchDocuments]);
 
   const storeProject = projects.find((p) => p.id === projectId);
   const storeDocuments = documents.filter((d) => d.projectId === projectId);
@@ -95,6 +106,7 @@ export default function ProjectDetailPage() {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!project) {
@@ -160,8 +172,23 @@ export default function ProjectDetailPage() {
               </div>
               <p className="text-sm text-slate-blue-gray mt-1">{project.stage}</p>
             </div>
+            <button
+              onClick={() => setShowShareModal(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-steel-blue text-white text-sm font-medium hover:bg-dark-navy transition-colors"
+            >
+              <Share2 className="w-4 h-4" />
+              Share
+            </button>
           </div>
         </div>
+
+        {showShareModal && (
+          <ShareModal
+            projectId={projectId}
+            projectName={project.name}
+            onClose={() => setShowShareModal(false)}
+          />
+        )}
 
         {/* Tab Bar */}
         <div className="max-w-5xl mx-auto px-6">
@@ -376,7 +403,7 @@ function DocumentsTab({
   fileInputRef,
   onFileUpload,
 }: {
-  documents: { id: string; projectId: string; name: string; url: string; type: string; size: number; uploadedAt: string; supabasePath?: string }[];
+  documents: ProjectDocument[];
   selectedFolder: string | null;
   setSelectedFolder: (f: string | null) => void;
   uploading: boolean;
@@ -384,8 +411,69 @@ function DocumentsTab({
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
+  const [previewDoc, setPreviewDoc] = useState<ProjectDocument | null>(null);
+
   return (
     <>
+      {/* File Preview Modal */}
+      {previewDoc && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setPreviewDoc(null)}>
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-light-gray">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-dark-navy truncate">{previewDoc.name}</p>
+                <p className="text-xs text-slate-blue-gray mt-0.5">
+                  {previewDoc.type.split('/')[1]?.toUpperCase() || 'FILE'} &middot; {formatFileSize(previewDoc.size)}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 ml-4">
+                {previewDoc.url && (
+                  <a
+                    href={previewDoc.url}
+                    download={previewDoc.name}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 rounded-lg hover:bg-frost-white transition-colors text-slate-blue-gray"
+                  >
+                    <Download className="w-5 h-5" />
+                  </a>
+                )}
+                <button onClick={() => setPreviewDoc(null)} className="p-2 rounded-lg hover:bg-frost-white transition-colors text-slate-blue-gray">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            {/* Modal Body */}
+            <div className="flex-1 overflow-auto flex items-center justify-center p-4 bg-frost-white min-h-[300px]">
+              {previewDoc.type.startsWith('image/') ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={previewDoc.url} alt={previewDoc.name} className="max-w-full max-h-[70vh] object-contain rounded-lg" />
+              ) : previewDoc.type === 'application/pdf' ? (
+                <iframe src={previewDoc.url} className="w-full h-[70vh] rounded-lg border-0" title={previewDoc.name} />
+              ) : previewDoc.type.startsWith('text/') ? (
+                <iframe src={previewDoc.url} className="w-full h-[70vh] rounded-lg border-0 bg-white" title={previewDoc.name} />
+              ) : (
+                <div className="text-center py-12">
+                  <File className="w-16 h-16 text-ice-blue mx-auto mb-4" />
+                  <p className="text-sm text-slate-blue-gray mb-4">Preview not available for this file type</p>
+                  <a
+                    href={previewDoc.url}
+                    download={previewDoc.name}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-primary inline-flex items-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download File
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Upload Bar */}
       <motion.div {...fadeUp}>
         <div className="flex gap-3">
@@ -486,7 +574,11 @@ function DocumentsTab({
               {documents.map((doc) => {
                 const isImage = doc.type.startsWith('image/');
                 return (
-                  <div key={doc.id} className="flex items-center gap-3 px-5 py-3">
+                  <button
+                    key={doc.id}
+                    onClick={() => setPreviewDoc(doc)}
+                    className="w-full flex items-center gap-3 px-5 py-3 hover:bg-frost-white transition-colors text-left"
+                  >
                     {isImage ? (
                       <div className="w-10 h-10 rounded-lg bg-frost-white overflow-hidden shrink-0">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -508,13 +600,13 @@ function DocumentsTab({
                         {formatDate(doc.uploadedAt)} &middot; {formatFileSize(doc.size)}
                       </p>
                     </div>
-                    {doc.supabasePath && (
+                    {doc.storagePath && (
                       <span className="flex items-center gap-1 text-xs text-approved font-medium">
                         <Cloud className="w-3 h-3" />
                         Synced
                       </span>
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>

@@ -16,6 +16,7 @@ export interface Project {
   imageUrl: string | null;
   lastActivity: string;
   progress: number;
+  isShared?: boolean;
 }
 
 export interface Task {
