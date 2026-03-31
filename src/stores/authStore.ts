@@ -65,6 +65,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     set({ session: null, user: null, profile: null, isOnboarded: false });
+
+    // Reset project store so the next user gets a fresh load
+    const { useProjectStore } = await import('@/stores/projectStore');
+    useProjectStore.setState({ projects: [], documents: [], isLoaded: false });
   },
 
   setOnboarded: (value: boolean) => set({ isOnboarded: value }),
