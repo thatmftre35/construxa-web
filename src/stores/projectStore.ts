@@ -83,22 +83,48 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     try {
       const supabase = getSupabaseClient();
       const { data: { user } } = await supabase.auth.getUser();
-      const { data, error } = await supabase
+      if (!user) { set({ isLoaded: true }); return; }
+
+      // Fetch own projects
+      const { data: ownData, error: ownError } = await supabase
         .from('projects')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.warn('Failed to fetch projects:', error.message);
+      if (ownError) {
+        console.warn('Failed to fetch projects:', ownError.message);
         set({ isLoaded: true });
         return;
       }
 
-      const projects = (data || []).map((row: Record<string, unknown>) => ({
+      // Fetch shared projects
+      const { data: shareRows } = await supabase
+        .from('project_shares')
+        .select('project_id')
+        .eq('shared_with_id', user.id);
+
+      const sharedProjectIds = (shareRows || []).map((r: Record<string, unknown>) => r.project_id as string);
+      let sharedData: Record<string, unknown>[] = [];
+      if (sharedProjectIds.length > 0) {
+        const { data } = await supabase
+          .from('projects')
+          .select('*')
+          .in('id', sharedProjectIds)
+          .order('created_at', { ascending: false });
+        sharedData = (data || []) as Record<string, unknown>[];
+      }
+
+      const ownProjects = (ownData || []).map((row: Record<string, unknown>) => ({
         ...rowToProject(row),
-        isShared: user ? row.user_id !== user.id : false,
+        isShared: false,
       }));
-      set({ projects, isLoaded: true });
+      const sharedProjects = sharedData.map((row: Record<string, unknown>) => ({
+        ...rowToProject(row),
+        isShared: true,
+      }));
+
+      set({ projects: [...ownProjects, ...sharedProjects], isLoaded: true });
     } catch (err) {
       console.warn('Error fetching projects:', err);
       set({ isLoaded: true });

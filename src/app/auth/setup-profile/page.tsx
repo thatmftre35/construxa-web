@@ -56,6 +56,8 @@ export default function SetupProfilePage() {
     try {
       await updateProfile({
         full_name: `${firstName} ${lastName}`.trim(),
+        first_name: firstName.trim() || null,
+        last_name: lastName.trim() || null,
         country,
         phone: phone || undefined,
         role,
