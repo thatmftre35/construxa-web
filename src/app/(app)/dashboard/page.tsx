@@ -71,7 +71,7 @@ export default function DashboardPage() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="max-w-6xl mx-auto space-y-8"
+      className="max-w-[1400px] mx-auto space-y-8"
     >
       {/* Header */}
       <div>
@@ -99,11 +99,11 @@ export default function DashboardPage() {
           <h2 className="text-lg font-semibold text-dark-navy">Needs Attention</h2>
           <span className="text-sm text-slate-blue-gray">{mockAlerts.length} alerts</span>
         </div>
-        <div className="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+        <div className="flex gap-4 overflow-x-auto pb-3 scrollbar-hide">
           {mockAlerts.map((alert) => (
             <div
               key={alert.id}
-              className={`card-subtle min-w-[280px] max-w-[320px] flex-shrink-0 border-l-4 ${alertBorderColors[alert.type] || 'border-l-steel-blue'}`}
+              className={`card-subtle min-w-[300px] flex-shrink-0 border-l-4 ${alertBorderColors[alert.type] || 'border-l-steel-blue'}`}
             >
               <div className="flex items-start gap-3">
                 <div className="mt-0.5">{alertIcons[alert.type]}</div>

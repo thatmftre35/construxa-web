@@ -158,7 +158,7 @@ export default function ProjectDetailPage() {
     <div className="min-h-screen bg-frost-white">
       {/* Header */}
       <div className="bg-white border-b border-light-gray">
-        <div className="max-w-5xl mx-auto px-6 py-5">
+        <div className="max-w-[1400px] mx-auto px-6 py-5">
           <div className="flex items-start gap-4">
             <Link
               href="/dashboard"
@@ -192,7 +192,7 @@ export default function ProjectDetailPage() {
         )}
 
         {/* Tab Bar */}
-        <div className="max-w-5xl mx-auto px-6">
+        <div className="max-w-[1400px] mx-auto px-6">
           <div className="flex gap-6">
             {tabs.map((tab) => (
               <button
@@ -213,7 +213,7 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* Content */}
-      <div className="max-w-5xl mx-auto px-6 py-6 space-y-6">
+      <div className="max-w-[1400px] mx-auto px-6 py-6 space-y-6">
         {activeTab === 'dashboard' ? (
           <DashboardTab
             project={project}

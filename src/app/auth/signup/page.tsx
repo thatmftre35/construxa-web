@@ -93,7 +93,7 @@ export default function SignupPage() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="flex flex-col"
+      className="flex flex-col max-w-md mx-auto"
     >
       {/* Back Link */}
       <Link href="/auth/login" className="flex items-center gap-1 text-steel-blue text-sm font-medium mb-6 hover:underline">

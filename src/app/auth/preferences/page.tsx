@@ -64,7 +64,7 @@ export default function PreferencesPage() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="flex flex-col items-center"
+      className="flex flex-col items-center max-w-md mx-auto"
     >
       <ProgressDots current={1} />
 
