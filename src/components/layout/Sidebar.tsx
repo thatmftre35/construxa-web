@@ -57,8 +57,8 @@ export default function Sidebar({ isOpen, onClose, unreadCount = 0 }: SidebarPro
         className={`
           fixed top-0 left-0 z-50 h-full w-[280px]
           border-r backdrop-blur-2xl
-          bg-white/75 border-white/80
-          dark:bg-white/4 dark:border-white/6
+          bg-white/85 border-white/90 shadow-[4px_0_24px_rgba(41,53,60,0.06)]
+          dark:bg-white/4 dark:border-white/6 dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)]
           flex flex-col transition-transform duration-300 ease-in-out
           lg:translate-x-0
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
