@@ -10,6 +10,17 @@ import {
   Plus,
   Check,
   Pencil,
+  Search,
+  Clock,
+  Shield,
+  Box,
+  Users,
+  Footprints,
+  FlaskConical,
+  Truck,
+  Package,
+  DollarSign,
+  Calendar,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useProjectStore } from '@/stores/projectStore';
@@ -34,6 +45,20 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   material_delivery: 'Material Delivery',
   financial: 'Financial',
   other: 'Other',
+};
+
+const EVENT_TYPE_ICONS: Record<string, typeof Search> = {
+  inspection: Search,
+  deadline: Clock,
+  safety_training: Shield,
+  concrete_pour: Box,
+  meeting: Users,
+  walkthrough: Footprints,
+  testing: FlaskConical,
+  equipment_delivery: Truck,
+  material_delivery: Package,
+  financial: DollarSign,
+  other: Calendar,
 };
 
 const proximityBorderColors: Record<string, string> = {
@@ -161,7 +186,10 @@ export default function DashboardPage() {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-dark-navy text-sm">{EVENT_TYPE_LABELS[event.type] || event.type}</p>
+                      <p className="font-semibold text-dark-navy text-sm flex items-center gap-1.5">
+                        {(() => { const Icon = EVENT_TYPE_ICONS[event.type] || Calendar; return <Icon size={14} className="text-steel-blue shrink-0" />; })()}
+                        {EVENT_TYPE_LABELS[event.type] || event.type}
+                      </p>
                       <p className="text-xs text-slate-blue-gray mt-1 line-clamp-2">{event.description}</p>
                       <div className="flex items-center justify-between mt-3">
                         <span className="text-[11px] text-steel-blue font-medium bg-frost-white px-2 py-0.5 rounded-full truncate max-w-[140px]">

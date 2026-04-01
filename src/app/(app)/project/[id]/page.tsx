@@ -22,6 +22,16 @@ import {
   X,
   Download,
   Share2,
+  Search,
+  Shield,
+  Box,
+  Users,
+  Footprints,
+  FlaskConical,
+  Truck,
+  Package,
+  DollarSign,
+  Calendar,
 } from 'lucide-react';
 import type { ProjectDocument } from '@/stores/projectStore';
 import type { Project } from '@/types/project';
@@ -32,6 +42,20 @@ import { formatEventDate } from '@/lib/dateUtils';
 import Badge from '@/components/ui/Badge';
 import Card from '@/components/ui/Card';
 import ShareModal from '@/components/project/ShareModal';
+
+const EVENT_TYPE_ICONS: Record<string, typeof Search> = {
+  inspection: Search,
+  deadline: Clock,
+  safety_training: Shield,
+  concrete_pour: Box,
+  meeting: Users,
+  walkthrough: Footprints,
+  testing: FlaskConical,
+  equipment_delivery: Truck,
+  material_delivery: Package,
+  financial: DollarSign,
+  other: Calendar,
+};
 
 type TabId = 'dashboard' | 'documents';
 
@@ -325,6 +349,7 @@ function DashboardTab({
             <div className="divide-y divide-light-gray">
               {projectEvents.map((event) => (
                 <div key={event.id} className="flex items-center gap-3 px-5 py-4">
+                  {(() => { const Icon = EVENT_TYPE_ICONS[event.type] || Calendar; return <Icon size={16} className="text-steel-blue shrink-0" />; })()}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-dark-navy truncate">{event.description || event.type}</p>
                     <p className="text-xs text-slate-blue-gray mt-0.5">{formatEventDate(event.eventDate)}</p>
