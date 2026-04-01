@@ -213,7 +213,7 @@ export default function ProjectDetailPage() {
     <div className="min-h-screen">
       {/* Header */}
       <div className="max-w-[1400px] mx-auto px-6 pt-6">
-      <div className="rounded-2xl backdrop-blur-2xl bg-white/65 dark:bg-white/4 border border-white/80 dark:border-white/6" style={{ boxShadow: '0 8px 32px rgba(41,53,60,0.08), inset 0 1px 0 rgba(255,255,255,0.9)' }}>
+      <div className="card !p-0">
         <div className="px-6 py-5">
           <div className="flex items-start gap-4">
             <Link
