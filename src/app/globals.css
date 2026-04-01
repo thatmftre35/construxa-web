@@ -151,14 +151,23 @@
     @apply text-steel-blue shadow-sm;
     background: rgba(255, 255, 255, 0.85);
   }
+}
 
-  .modal-container {
-    background: rgba(255, 255, 255, 0.82) !important;
-    backdrop-filter: blur(24px) saturate(1.2);
-    -webkit-backdrop-filter: blur(24px) saturate(1.2);
-    border: 1px solid rgba(255, 255, 255, 0.9);
-    box-shadow: 0 8px 32px rgba(41, 53, 60, 0.1), inset 0 1px 0 rgba(255, 255, 255, 1);
-  }
+/* Modal containers — OUTSIDE @layer so they win specificity */
+.modal-container {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 8px 32px rgba(41, 53, 60, 0.1), inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+
+.dark .modal-container {
+  background: rgba(41, 53, 60, 0.92);
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  border: 1px solid rgba(118, 138, 150, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 /* ─────────────────────────────────────────────────────── */
@@ -200,14 +209,6 @@
     #1a2229;
   background-attachment: fixed;
   color: #DFEBF6;
-}
-
-.dark .modal-container {
-  background: rgba(41, 53, 60, 0.92) !important;
-  backdrop-filter: blur(24px) saturate(1.2) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(1.2) !important;
-  border-color: rgba(118, 138, 150, 0.2) !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
 }
 
 /* Dark glass cards */
