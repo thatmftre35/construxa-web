@@ -84,10 +84,10 @@ export default function CreateTaskModal({ open, onClose, initialData, initialPro
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-light-gray">
-          <h2 className="text-lg font-semibold text-dark-navy">{isEdit ? 'Edit Task' : 'Create Task'}</h2>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-frost-white text-slate-blue-gray"><X className="w-5 h-5" /></button>
+      <div className="bg-white dark:bg-[#1e2a32] dark:border dark:border-white/8 rounded-2xl w-full max-w-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-light-gray dark:border-white/6">
+          <h2 className="text-lg font-semibold text-dark-navy dark:text-frost-white">{isEdit ? 'Edit Task' : 'Create Task'}</h2>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-frost-white dark:hover:bg-white/5 text-slate-blue-gray"><X className="w-5 h-5" /></button>
         </div>
 
         <div className="px-5 py-4 space-y-4">
@@ -112,12 +112,12 @@ export default function CreateTaskModal({ open, onClose, initialData, initialPro
               placeholder="Search projects..."
             />
             {showProjectDropdown && filteredProjects.length > 0 && (
-              <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-light-gray rounded-xl shadow-lg max-h-40 overflow-y-auto">
+              <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white dark:bg-[#1e2a32] border border-light-gray dark:border-white/8 rounded-xl shadow-lg max-h-40 overflow-y-auto">
                 {filteredProjects.map((p) => (
                   <button
                     key={p.id}
                     onClick={() => { setProjectId(p.id); setProjectSearch(p.name); setShowProjectDropdown(false); }}
-                    className="w-full text-left px-4 py-2.5 text-sm text-dark-navy hover:bg-frost-white"
+                    className="w-full text-left px-4 py-2.5 text-sm text-dark-navy dark:text-frost-white hover:bg-frost-white dark:hover:bg-white/5"
                   >
                     {p.name}
                   </button>
@@ -149,7 +149,7 @@ export default function CreateTaskModal({ open, onClose, initialData, initialPro
           {error && <p className="text-xs text-rejected">{error}</p>}
         </div>
 
-        <div className="px-5 py-4 border-t border-light-gray">
+        <div className="px-5 py-4 border-t border-light-gray dark:border-white/6">
           <button onClick={handleSubmit} disabled={loading} className="btn-primary w-full disabled:opacity-50">
             {loading ? 'Saving...' : isEdit ? 'Update Task' : 'Create Task'}
           </button>
