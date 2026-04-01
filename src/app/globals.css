@@ -203,11 +203,11 @@
 }
 
 .dark .modal-container {
-  background: rgba(30, 42, 50, 0.88) !important;
+  background: rgba(41, 53, 60, 0.92) !important;
   backdrop-filter: blur(24px) saturate(1.2) !important;
   -webkit-backdrop-filter: blur(24px) saturate(1.2) !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(118, 138, 150, 0.2) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
 }
 
 /* Dark glass cards */
