@@ -35,7 +35,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           >
             <Menu size={24} />
           </button>
-          <h1 className="ml-3 font-display text-xl tracking-[4px] text-steel-blue dark:text-ice-blue">
+          <h1 className="ml-3 font-display text-xl tracking-[4px] text-dark-navy dark:text-ice-blue">
             CONSTRUXA
           </h1>
         </div>

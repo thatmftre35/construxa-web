@@ -57,7 +57,7 @@ export default function Sidebar({ isOpen, onClose, unreadCount = 0 }: SidebarPro
         className={`
           fixed top-0 left-0 z-50 h-full w-[280px]
           border-r backdrop-blur-2xl
-          bg-white/60 border-white/70
+          bg-white/75 border-white/80
           dark:bg-white/4 dark:border-white/6
           flex flex-col transition-transform duration-300 ease-in-out
           lg:translate-x-0
@@ -67,14 +67,14 @@ export default function Sidebar({ isOpen, onClose, unreadCount = 0 }: SidebarPro
         {/* Close button (mobile) */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1 text-slate-blue-gray hover:text-dark-navy dark:text-ice-blue dark:hover:text-frost-white lg:hidden"
+          className="absolute top-4 right-4 p-1 text-steel-blue hover:text-dark-navy dark:text-ice-blue dark:hover:text-frost-white lg:hidden"
         >
           <X size={20} />
         </button>
 
         {/* Logo */}
         <div className="px-6 pt-8 pb-6">
-          <h1 className="font-display text-3xl tracking-[6px] text-steel-blue dark:text-ice-blue">
+          <h1 className="font-display text-3xl tracking-[6px] text-dark-navy dark:text-ice-blue">
             CONSTRUXA
           </h1>
           <div className="mt-3 w-10 h-[3px] bg-ice-blue rounded-full" />
@@ -94,8 +94,8 @@ export default function Sidebar({ isOpen, onClose, unreadCount = 0 }: SidebarPro
                 className={`
                   flex items-center gap-3 py-3 px-4 rounded-xl transition-colors duration-200
                   ${isActive
-                    ? 'bg-white/50 text-steel-blue font-semibold dark:bg-white/8 dark:text-ice-blue'
-                    : 'text-slate-blue-gray hover:bg-white/30 dark:text-ice-blue/70 dark:hover:bg-white/5'
+                    ? 'bg-white/50 text-dark-navy font-semibold dark:bg-white/8 dark:text-ice-blue'
+                    : 'text-steel-blue hover:bg-white/30 hover:text-dark-navy dark:text-ice-blue/70 dark:hover:bg-white/5'
                   }
                 `}
               >
@@ -122,7 +122,7 @@ export default function Sidebar({ isOpen, onClose, unreadCount = 0 }: SidebarPro
                 {displayName}
               </p>
               {profile?.role && (
-                <p className="text-xs text-slate-blue-gray dark:text-ice-blue truncate">
+                <p className="text-xs text-steel-blue dark:text-ice-blue truncate">
                   {profile.role}
                 </p>
               )}
