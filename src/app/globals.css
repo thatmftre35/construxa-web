@@ -159,20 +159,30 @@
 /*  LIGHT MODE — high contrast text on glass               */
 /* ─────────────────────────────────────────────────────── */
 
-/* On frosted glass, the mid-tone palette colors (#44576D, #768A96)
-   lack contrast. Darken them in light mode only. */
+/* On frosted glass, the mid-tone palette colors lack contrast.
+   Override to darker values in light mode only. */
+:root:not(.dark) .text-dark-navy {
+  color: #1a2229 !important;
+}
+
 :root:not(.dark) .text-slate-blue-gray {
-  color: #44576D;
+  color: #3d4f5a !important;
 }
 
 :root:not(.dark) .text-steel-blue {
-  color: #2d3e48;
+  color: #29353C !important;
+}
+
+:root:not(.dark) h1,
+:root:not(.dark) h2,
+:root:not(.dark) h3 {
+  color: #1a2229;
 }
 
 /* Keep original steel-blue for buttons that have their own bg */
 :root:not(.dark) .btn-secondary,
 :root:not(.dark) .btn-ghost {
-  color: #44576D;
+  color: #44576D !important;
 }
 
 /* ─────────────────────────────────────────────────────── */

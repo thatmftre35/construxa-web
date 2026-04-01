@@ -273,7 +273,7 @@ function DashboardTab({
             <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
             <span className="text-sm">{fullAddress}</span>
           </div>
-          <p className="text-sm text-dark-navy/80 mb-5">{project.description}</p>
+          <p className="text-sm text-dark-navy mb-5">{project.description}</p>
 
           <div className="grid grid-cols-3 gap-4 mb-5">
             <div>
