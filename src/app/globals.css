@@ -194,25 +194,25 @@
   color: #DFEBF6;
 }
 
-/* Dark glass cards — visible but translucent */
+/* Dark glass cards */
 .dark .card {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.14);
   backdrop-filter: blur(20px) saturate(1.2);
   -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .dark .card-subtle {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(16px) saturate(1.1);
   -webkit-backdrop-filter: blur(16px) saturate(1.1);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow:
     0 4px 16px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .dark .card:hover, .dark .card-subtle:hover {
@@ -223,8 +223,8 @@
 }
 
 .dark .input-field {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.14);
   color: #DFEBF6;
 }
 
@@ -233,7 +233,7 @@
 }
 
 .dark .input-field:focus {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.14);
   border-color: rgba(170, 199, 216, 0.4);
   box-shadow: 0 0 0 3px rgba(170, 199, 216, 0.12);
 }
@@ -247,25 +247,25 @@
 }
 
 .dark .btn-secondary {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.14);
   color: #AAC7D8;
 }
 
 .dark .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .dark .btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .dark .segmented-control {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .dark .segment-active {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.14);
   color: #DFEBF6;
 }
 
@@ -293,21 +293,21 @@
 
 /* Dark mode: remap hardcoded backgrounds */
 .dark .bg-white {
-  background-color: rgba(255, 255, 255, 0.06) !important;
-}
-
-.dark .bg-frost-white {
-  background-color: rgba(255, 255, 255, 0.08) !important;
-}
-
-.dark .border-light-gray {
-  border-color: rgba(255, 255, 255, 0.08) !important;
-}
-
-.dark .hover\:bg-frost-white:hover {
   background-color: rgba(255, 255, 255, 0.1) !important;
 }
 
+.dark .bg-frost-white {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.dark .border-light-gray {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark .hover\:bg-frost-white:hover {
+  background-color: rgba(255, 255, 255, 0.14) !important;
+}
+
 .dark .divide-light-gray > :not(:last-child) {
-  border-color: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
 }
