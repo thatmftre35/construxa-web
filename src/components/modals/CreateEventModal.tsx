@@ -110,7 +110,7 @@ export default function CreateEventModal({ open, onClose, initialData, initialPr
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="rounded-2xl w-full max-w-lg shadow-xl bg-white dark:bg-[#1e2a32] dark:border dark:border-white/8" onClick={(e) => e.stopPropagation()}>
+      <div className="rounded-2xl w-full max-w-lg shadow-xl modal-container" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-light-gray dark:border-white/6">
           <h2 className="text-lg font-semibold text-dark-navy dark:text-frost-white">{isEdit ? 'Edit Event' : 'Create Event'}</h2>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-frost-white dark:hover:bg-steel-blue/10 text-slate-blue-gray"><X className="w-5 h-5" /></button>

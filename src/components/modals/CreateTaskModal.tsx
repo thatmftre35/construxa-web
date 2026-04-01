@@ -84,7 +84,7 @@ export default function CreateTaskModal({ open, onClose, initialData, initialPro
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-[#1e2a32] dark:border dark:border-white/8 rounded-2xl w-full max-w-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-container rounded-2xl w-full max-w-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-light-gray dark:border-white/6">
           <h2 className="text-lg font-semibold text-dark-navy dark:text-frost-white">{isEdit ? 'Edit Task' : 'Create Task'}</h2>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-frost-white dark:hover:bg-white/5 text-slate-blue-gray"><X className="w-5 h-5" /></button>

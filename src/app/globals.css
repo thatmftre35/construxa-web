@@ -151,6 +151,11 @@
     @apply text-steel-blue shadow-sm;
     background: rgba(255, 255, 255, 0.85);
   }
+
+  .modal-container {
+    background-color: #ffffff !important;
+    border: 1px solid #E6E6E6;
+  }
 }
 
 /* ─────────────────────────────────────────────────────── */
@@ -192,6 +197,20 @@
     #1a2229;
   background-attachment: fixed;
   color: #DFEBF6;
+}
+
+.dark .modal-container {
+  background-color: #1e2a32 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.dark .modal-container .input-field {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.dark .modal-container .input-field:focus {
+  background: rgba(255, 255, 255, 0.12) !important;
 }
 
 /* Dark glass cards */
