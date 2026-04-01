@@ -20,31 +20,35 @@
   --font-body: 'DM Sans', sans-serif;
 }
 
+/* ── Light mode ── */
 @layer base {
   body {
     font-family: var(--font-body);
     color: var(--color-dark-navy);
-    background-color: var(--color-frost-white);
-    transition: background-color 0.3s, color 0.3s;
-  }
-
-  .dark body,
-  .dark {
-    background-color: #1a2229;
-    color: #DFEBF6;
+    background: linear-gradient(135deg, #DFEBF6 0%, #c9ddef 30%, #dce8f3 60%, #DFEBF6 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+    transition: background 0.4s, color 0.4s;
   }
 }
 
 @layer components {
-  /* ── Light mode: clean white with subtle glass on hover ── */
   .card {
-    @apply bg-white rounded-2xl p-6;
-    box-shadow: 0 4px 12px rgba(41, 53, 60, 0.08);
+    @apply rounded-2xl p-6;
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow: 0 8px 32px rgba(41, 53, 60, 0.06), 0 1px 2px rgba(41, 53, 60, 0.04);
   }
 
   .card-subtle {
-    @apply bg-white rounded-xl p-4;
-    box-shadow: 0 2px 6px rgba(41, 53, 60, 0.05);
+    @apply rounded-xl p-4;
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 4px 16px rgba(41, 53, 60, 0.04);
   }
 
   .btn-primary {
@@ -53,13 +57,19 @@
   }
 
   .btn-secondary {
-    @apply bg-frost-white text-steel-blue font-semibold py-3 px-6 rounded-xl
-           hover:bg-ice-blue/30 transition-colors duration-200 border border-light-gray w-full text-center;
+    @apply text-steel-blue font-semibold py-3 px-6 rounded-xl
+           transition-all duration-200 border w-full text-center;
+    background: rgba(255, 255, 255, 0.5);
+    border-color: rgba(255, 255, 255, 0.6);
+  }
+
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.7);
   }
 
   .btn-ghost {
     @apply text-steel-blue font-medium py-3 px-6 rounded-xl
-           hover:bg-frost-white transition-colors duration-200 w-full text-center;
+           hover:bg-white/40 transition-colors duration-200 w-full text-center;
   }
 
   .btn-danger {
@@ -68,10 +78,20 @@
   }
 
   .input-field {
-    @apply w-full bg-white border border-light-gray rounded-xl px-4 py-3
+    @apply w-full rounded-xl px-4 py-3
            text-dark-navy placeholder:text-slate-blue-gray
-           focus:outline-none focus:border-steel-blue focus:ring-1 focus:ring-steel-blue
-           transition-colors duration-200;
+           focus:outline-none focus:ring-1
+           transition-all duration-200;
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+  }
+
+  .input-field:focus {
+    background: rgba(255, 255, 255, 0.8);
+    border-color: var(--color-ice-blue);
+    box-shadow: 0 0 0 2px rgba(170, 199, 216, 0.25);
   }
 
   .badge {
@@ -95,7 +115,8 @@
   }
 
   .segmented-control {
-    @apply flex bg-frost-white rounded-full p-0.5;
+    @apply flex rounded-full p-0.5;
+    background: rgba(223, 235, 246, 0.6);
   }
 
   .segment {
@@ -104,41 +125,40 @@
   }
 
   .segment-active {
-    @apply bg-white text-steel-blue shadow-sm;
+    @apply text-steel-blue shadow-sm;
+    background: rgba(255, 255, 255, 0.8);
   }
 }
 
-/* ── Dark mode: glassy translucent cards on dark background ── */
-.dark .card {
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+/* ── Dark mode ── */
+.dark body,
+.dark {
+  background: linear-gradient(135deg, #1a2229 0%, #1e2a33 30%, #1a2530 60%, #1a2229 100%);
+  background-attachment: fixed;
   color: #DFEBF6;
+}
+
+.dark .card {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .dark .card-subtle {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  color: #DFEBF6;
-}
-
-.dark .card p,
-.dark .card span,
-.dark .card-subtle p,
-.dark .card-subtle span {
-  color: inherit;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 .dark .input-field {
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.08);
   color: #DFEBF6;
 }
 
@@ -147,8 +167,9 @@
 }
 
 .dark .input-field:focus {
-  border-color: #AAC7D8;
-  box-shadow: 0 0 0 1px rgba(170, 199, 216, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(170, 199, 216, 0.4);
+  box-shadow: 0 0 0 2px rgba(170, 199, 216, 0.15);
 }
 
 .dark .btn-primary {
@@ -160,9 +181,13 @@
 }
 
 .dark .btn-secondary {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
   color: #AAC7D8;
+}
+
+.dark .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .dark .btn-ghost:hover {
@@ -170,15 +195,15 @@
 }
 
 .dark .segmented-control {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .dark .segment-active {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   color: #DFEBF6;
 }
 
-/* Dark mode text helpers */
+/* Dark mode text — readable everywhere */
 .dark h1, .dark h2, .dark h3, .dark h4 {
   color: #DFEBF6;
 }
@@ -195,6 +220,7 @@
   color: #AAC7D8;
 }
 
-.dark a.text-steel-blue:hover {
+.dark a.text-steel-blue:hover,
+.dark button.text-steel-blue:hover {
   color: #DFEBF6;
 }
