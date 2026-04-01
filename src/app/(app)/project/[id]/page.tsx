@@ -212,8 +212,9 @@ export default function ProjectDetailPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <div className="backdrop-blur-2xl bg-white/60 dark:bg-white/4 border-b border-white/60 dark:border-white/6">
-        <div className="max-w-[1400px] mx-auto px-6 py-5">
+      <div className="max-w-[1400px] mx-auto px-6 pt-6">
+      <div className="rounded-2xl backdrop-blur-2xl bg-white/65 dark:bg-white/4 border border-white/80 dark:border-white/6" style={{ boxShadow: '0 8px 32px rgba(41,53,60,0.08), inset 0 1px 0 rgba(255,255,255,0.9)' }}>
+        <div className="px-6 py-5">
           <div className="flex items-start gap-4">
             <Link
               href="/dashboard"
@@ -278,13 +279,13 @@ export default function ProjectDetailPage() {
         )}
 
         {/* Tab Bar */}
-        <div className="max-w-[1400px] mx-auto px-6">
+        <div className="px-6 border-t border-white/40 dark:border-white/6">
           <div className="flex gap-6">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+                className={`flex items-center gap-2 pb-3 pt-3 px-1 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === tab.id
                     ? 'border-steel-blue text-steel-blue'
                     : 'border-transparent text-slate-blue-gray hover:text-dark-navy'
@@ -296,6 +297,7 @@ export default function ProjectDetailPage() {
             ))}
           </div>
         </div>
+      </div>
       </div>
 
       {/* Modals */}
