@@ -1,10 +1,27 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { X } from 'lucide-react';
+import {
+  X, Search, Clock, Shield, Box, Users, Footprints, FlaskConical,
+  Truck, Package, DollarSign, Calendar, ChevronDown,
+} from 'lucide-react';
 import { useEventStore } from '@/stores/eventStore';
 import { useProjectStore } from '@/stores/projectStore';
 import type { Event, EventType } from '@/types/project';
+
+const EVENT_TYPE_ICONS: Record<EventType, typeof Search> = {
+  inspection: Search,
+  deadline: Clock,
+  safety_training: Shield,
+  concrete_pour: Box,
+  meeting: Users,
+  walkthrough: Footprints,
+  testing: FlaskConical,
+  equipment_delivery: Truck,
+  material_delivery: Package,
+  financial: DollarSign,
+  other: Calendar,
+};
 
 const EVENT_TYPES: { value: EventType; label: string }[] = [
   { value: 'inspection', label: 'Inspection' },
@@ -37,6 +54,7 @@ export default function CreateEventModal({ open, onClose, initialData }: Props) 
   const [eventDate, setEventDate] = useState('');
   const [projectSearch, setProjectSearch] = useState('');
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
+  const [showTypePicker, setShowTypePicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -97,11 +115,34 @@ export default function CreateEventModal({ open, onClose, initialData }: Props) 
         </div>
 
         <div className="px-5 py-4 space-y-4">
-          <div>
+          <div className="relative">
             <label className="text-xs font-medium text-slate-blue-gray mb-1 block">Event Type</label>
-            <select value={type} onChange={(e) => setType(e.target.value as EventType)} className="input-field w-full">
-              {EVENT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
+            <button
+              type="button"
+              onClick={() => setShowTypePicker(!showTypePicker)}
+              className="input-field w-full flex items-center gap-2 text-left"
+            >
+              {(() => { const Icon = EVENT_TYPE_ICONS[type]; return <Icon className="w-4 h-4 text-steel-blue shrink-0" />; })()}
+              <span className="flex-1">{EVENT_TYPES.find((t) => t.value === type)?.label}</span>
+              <ChevronDown className="w-4 h-4 text-slate-blue-gray shrink-0" />
+            </button>
+            {showTypePicker && (
+              <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-light-gray rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                {EVENT_TYPES.map((t) => {
+                  const Icon = EVENT_TYPE_ICONS[t.value];
+                  return (
+                    <button
+                      key={t.value}
+                      onClick={() => { setType(t.value); setShowTypePicker(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2.5 hover:bg-frost-white ${type === t.value ? 'text-steel-blue font-semibold' : 'text-dark-navy'}`}
+                    >
+                      <Icon className="w-4 h-4 shrink-0" />
+                      {t.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div>
