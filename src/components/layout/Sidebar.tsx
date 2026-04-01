@@ -56,9 +56,8 @@ export default function Sidebar({ isOpen, onClose, unreadCount = 0 }: SidebarPro
       <aside
         className={`
           fixed top-0 left-0 z-50 h-full w-[280px]
-          backdrop-blur-xl border-r
-          bg-glass-strong/90 border-glass-border
-          dark:bg-dark-navy/90 dark:border-steel-blue/20
+          border-r bg-white border-light-gray
+          dark:bg-[#1e2a32]/90 dark:backdrop-blur-xl dark:border-white/8
           flex flex-col transition-transform duration-300 ease-in-out
           lg:translate-x-0
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -112,7 +111,7 @@ export default function Sidebar({ isOpen, onClose, unreadCount = 0 }: SidebarPro
         </nav>
 
         {/* User profile card */}
-        <div className="p-4 border-t border-light-gray dark:border-steel-blue/20">
+        <div className="p-4 border-t border-light-gray dark:border-white/8">
           <div className="flex items-center gap-3">
             <div className="flex-shrink-0 w-10 h-10 rounded-full bg-steel-blue text-white flex items-center justify-center text-sm font-semibold">
               {initials}

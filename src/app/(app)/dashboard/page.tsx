@@ -255,7 +255,7 @@ export default function DashboardPage() {
                     <span className="text-slate-blue-gray">Progress</span>
                     <span className="font-medium text-dark-navy">{Math.round(project.progress * 100)}%</span>
                   </div>
-                  <div className="w-full h-2 bg-frost-white rounded-full overflow-hidden">
+                  <div className="w-full h-2 bg-frost-white dark:bg-white/10 rounded-full overflow-hidden">
                     <div className="h-full bg-steel-blue rounded-full transition-all duration-500" style={{ width: `${project.progress * 100}%` }} />
                   </div>
                 </div>

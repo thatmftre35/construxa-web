@@ -27,7 +27,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Mobile header */}
-      <div className="sticky top-0 z-30 flex items-center justify-between h-14 px-4 backdrop-blur-xl border-b lg:hidden bg-glass-strong/90 border-glass-border dark:bg-dark-navy/80 dark:border-steel-blue/20">
+      <div className="sticky top-0 z-30 flex items-center justify-between h-14 px-4 border-b lg:hidden bg-white border-light-gray dark:bg-[#1e2a32]/90 dark:backdrop-blur-xl dark:border-white/8">
         <div className="flex items-center">
           <button
             onClick={() => setSidebarOpen(true)}
@@ -51,7 +51,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <div className="hidden lg:flex fixed top-5 right-6 z-30">
         <button
           onClick={toggle}
-          className="p-2.5 rounded-xl backdrop-blur-xl border transition-colors bg-glass-strong border-glass-border text-steel-blue hover:bg-white dark:bg-dark-navy/60 dark:border-steel-blue/20 dark:text-ice-blue dark:hover:bg-steel-blue/20"
+          className="p-2.5 rounded-xl border transition-colors bg-white border-light-gray text-steel-blue hover:bg-frost-white dark:bg-white/6 dark:backdrop-blur-xl dark:border-white/8 dark:text-ice-blue dark:hover:bg-white/10"
         >
           {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
         </button>

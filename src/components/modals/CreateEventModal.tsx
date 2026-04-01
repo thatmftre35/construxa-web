@@ -108,8 +108,8 @@ export default function CreateEventModal({ open, onClose, initialData }: Props) 
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="rounded-2xl w-full max-w-lg shadow-xl backdrop-blur-xl border border-glass-border bg-glass-strong dark:bg-dark-navy/90 dark:border-steel-blue/20" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-light-gray dark:border-steel-blue/20">
+      <div className="rounded-2xl w-full max-w-lg shadow-xl bg-white dark:bg-[#1e2a32]/95 dark:backdrop-blur-xl dark:border dark:border-white/8" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-light-gray dark:border-white/8">
           <h2 className="text-lg font-semibold text-dark-navy dark:text-frost-white">{isEdit ? 'Edit Event' : 'Create Event'}</h2>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-frost-white dark:hover:bg-steel-blue/10 text-slate-blue-gray"><X className="w-5 h-5" /></button>
         </div>
@@ -127,7 +127,7 @@ export default function CreateEventModal({ open, onClose, initialData }: Props) 
               <ChevronDown className="w-4 h-4 text-slate-blue-gray shrink-0" />
             </button>
             {showTypePicker && (
-              <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white dark:bg-dark-navy/95 border border-light-gray dark:border-steel-blue/20 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+              <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white dark:bg-[#1e2a32] border border-light-gray dark:border-white/10 rounded-xl shadow-lg max-h-60 overflow-y-auto">
                 {EVENT_TYPES.map((t) => {
                   const Icon = EVENT_TYPE_ICONS[t.value];
                   return (
@@ -161,7 +161,7 @@ export default function CreateEventModal({ open, onClose, initialData }: Props) 
               placeholder="Search projects..."
             />
             {showProjectDropdown && filteredProjects.length > 0 && (
-              <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white dark:bg-dark-navy/95 border border-light-gray dark:border-steel-blue/20 rounded-xl shadow-lg max-h-40 overflow-y-auto">
+              <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white dark:bg-[#1e2a32] border border-light-gray dark:border-white/10 rounded-xl shadow-lg max-h-40 overflow-y-auto">
                 {filteredProjects.map((p) => (
                   <button
                     key={p.id}
@@ -183,7 +183,7 @@ export default function CreateEventModal({ open, onClose, initialData }: Props) 
           {error && <p className="text-xs text-rejected">{error}</p>}
         </div>
 
-        <div className="px-5 py-4 border-t border-light-gray dark:border-steel-blue/20">
+        <div className="px-5 py-4 border-t border-light-gray dark:border-white/8">
           <button onClick={handleSubmit} disabled={loading} className="btn-primary w-full disabled:opacity-50">
             {loading ? 'Saving...' : isEdit ? 'Update Event' : 'Create Event'}
           </button>

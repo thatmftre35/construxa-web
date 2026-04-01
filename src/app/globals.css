@@ -36,15 +36,14 @@
 }
 
 @layer components {
+  /* ── Light mode: clean white with subtle glass on hover ── */
   .card {
-    @apply rounded-2xl p-6 backdrop-blur-xl border border-glass-border;
-    background: rgba(255, 255, 255, 0.55);
+    @apply bg-white rounded-2xl p-6;
     box-shadow: 0 4px 12px rgba(41, 53, 60, 0.08);
   }
 
   .card-subtle {
-    @apply rounded-xl p-4 backdrop-blur-lg border border-glass-border;
-    background: rgba(255, 255, 255, 0.5);
+    @apply bg-white rounded-xl p-4;
     box-shadow: 0 2px 6px rgba(41, 53, 60, 0.05);
   }
 
@@ -69,11 +68,10 @@
   }
 
   .input-field {
-    @apply w-full border border-light-gray rounded-xl px-4 py-3
+    @apply w-full bg-white border border-light-gray rounded-xl px-4 py-3
            text-dark-navy placeholder:text-slate-blue-gray
            focus:outline-none focus:border-steel-blue focus:ring-1 focus:ring-steel-blue
-           transition-colors duration-200 backdrop-blur-sm;
-    background: rgba(255, 255, 255, 0.7);
+           transition-colors duration-200;
   }
 
   .badge {
@@ -110,27 +108,47 @@
   }
 }
 
-/* Dark mode overrides */
+/* ── Dark mode: glassy translucent cards on dark background ── */
 .dark .card {
-  background: rgba(41, 53, 60, 0.6);
-  border-color: rgba(68, 87, 109, 0.3);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  color: #DFEBF6;
 }
 
 .dark .card-subtle {
-  background: rgba(41, 53, 60, 0.5);
-  border-color: rgba(68, 87, 109, 0.25);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  color: #DFEBF6;
+}
+
+.dark .card p,
+.dark .card span,
+.dark .card-subtle p,
+.dark .card-subtle span {
+  color: inherit;
 }
 
 .dark .input-field {
-  background: rgba(41, 53, 60, 0.6);
-  border-color: rgba(68, 87, 109, 0.3);
+  background: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: rgba(255, 255, 255, 0.1);
   color: #DFEBF6;
 }
 
 .dark .input-field::placeholder {
   color: #768A96;
+}
+
+.dark .input-field:focus {
+  border-color: #AAC7D8;
+  box-shadow: 0 0 0 1px rgba(170, 199, 216, 0.3);
 }
 
 .dark .btn-primary {
@@ -142,16 +160,41 @@
 }
 
 .dark .btn-secondary {
-  background: rgba(41, 53, 60, 0.5);
-  border-color: rgba(68, 87, 109, 0.3);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
   color: #AAC7D8;
 }
 
+.dark .btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .dark .segmented-control {
-  background: rgba(41, 53, 60, 0.5);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .dark .segment-active {
-  background: rgba(68, 87, 109, 0.5);
+  background: rgba(255, 255, 255, 0.1);
+  color: #DFEBF6;
+}
+
+/* Dark mode text helpers */
+.dark h1, .dark h2, .dark h3, .dark h4 {
+  color: #DFEBF6;
+}
+
+.dark .text-dark-navy {
+  color: #DFEBF6;
+}
+
+.dark .text-slate-blue-gray {
+  color: #AAC7D8;
+}
+
+.dark .text-steel-blue {
+  color: #AAC7D8;
+}
+
+.dark a.text-steel-blue:hover {
   color: #DFEBF6;
 }
