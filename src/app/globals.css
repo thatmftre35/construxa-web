@@ -22,10 +22,9 @@
 
 /*
  * Glassmorphism best practices:
- * 1. Multi-layered gradient background (not flat) for the blur to reveal
- * 2. Frosted cards: semi-transparent white + backdrop-blur + subtle border
- * 3. HIGH CONTRAST text — always dark-navy (#29353C) on glass surfaces
- * 4. Borders use white with moderate opacity for the glass edge highlight
+ * Light: high white opacity (0.8+) so cards read as white, not tinted
+ * Dark: moderate white opacity (0.08-0.12) so cards are clearly visible
+ * Both: backdrop-blur + saturate + subtle border + inset highlight
  */
 
 /* ── Light mode ── */
@@ -34,9 +33,8 @@
     font-family: var(--font-body);
     color: var(--color-dark-navy);
     background:
-      radial-gradient(ellipse at 20% 20%, rgba(170, 199, 216, 0.35) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 80%, rgba(170, 199, 216, 0.25) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 50%, rgba(223, 235, 246, 0.4) 0%, transparent 70%),
+      radial-gradient(ellipse at 20% 20%, rgba(170, 199, 216, 0.3) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, rgba(170, 199, 216, 0.2) 0%, transparent 50%),
       #DFEBF6;
     background-attachment: fixed;
     min-height: 100vh;
@@ -47,33 +45,33 @@
 @layer components {
   .card {
     @apply rounded-2xl p-6;
-    background: rgba(255, 255, 255, 0.65);
+    background: rgba(255, 255, 255, 0.82);
     backdrop-filter: blur(20px) saturate(1.2);
     -webkit-backdrop-filter: blur(20px) saturate(1.2);
-    border: 1px solid rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.9);
     box-shadow:
-      0 8px 32px rgba(41, 53, 60, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      0 8px 32px rgba(41, 53, 60, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 1);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
 
   .card-subtle {
     @apply rounded-xl p-4;
-    background: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.72);
     backdrop-filter: blur(16px) saturate(1.1);
     -webkit-backdrop-filter: blur(16px) saturate(1.1);
-    border: 1px solid rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.85);
     box-shadow:
-      0 4px 16px rgba(41, 53, 60, 0.05),
-      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      0 4px 16px rgba(41, 53, 60, 0.04),
+      inset 0 1px 0 rgba(255, 255, 255, 0.95);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
 
   .card:hover, .card-subtle:hover {
     transform: translateY(-2px);
     box-shadow:
-      0 12px 40px rgba(41, 53, 60, 0.12),
-      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      0 12px 40px rgba(41, 53, 60, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 1);
   }
 
   .btn-primary {
@@ -84,17 +82,17 @@
   .btn-secondary {
     @apply text-steel-blue font-semibold py-3 px-6 rounded-xl
            transition-all duration-200 border w-full text-center;
-    background: rgba(255, 255, 255, 0.5);
-    border-color: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.7);
+    border-color: rgba(255, 255, 255, 0.85);
   }
 
   .btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.85);
   }
 
   .btn-ghost {
     @apply text-steel-blue font-medium py-3 px-6 rounded-xl
-           hover:bg-white/40 transition-colors duration-200 w-full text-center;
+           hover:bg-white/50 transition-colors duration-200 w-full text-center;
   }
 
   .btn-danger {
@@ -107,16 +105,16 @@
            text-dark-navy placeholder:text-slate-blue-gray
            focus:outline-none
            transition-all duration-200;
-    background: rgba(255, 255, 255, 0.65);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.9);
   }
 
   .input-field:focus {
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.95);
     border-color: var(--color-steel-blue);
-    box-shadow: 0 0 0 3px rgba(68, 87, 109, 0.15);
+    box-shadow: 0 0 0 3px rgba(68, 87, 109, 0.12);
   }
 
   .badge {
@@ -151,7 +149,7 @@
 
   .segment-active {
     @apply text-steel-blue shadow-sm;
-    background: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.85);
   }
 }
 
@@ -159,8 +157,6 @@
 /*  LIGHT MODE — high contrast text on glass               */
 /* ─────────────────────────────────────────────────────── */
 
-/* On frosted glass, the mid-tone palette colors lack contrast.
-   Override to darker values in light mode only. */
 :root:not(.dark) .text-dark-navy {
   color: #1a2229 !important;
 }
@@ -179,7 +175,6 @@
   color: #1a2229;
 }
 
-/* Keep original steel-blue for buttons that have their own bg */
 :root:not(.dark) .btn-secondary,
 :root:not(.dark) .btn-ghost {
   color: #44576D !important;
@@ -199,37 +194,37 @@
   color: #DFEBF6;
 }
 
-/* Dark glass cards */
+/* Dark glass cards — visible but translucent */
 .dark .card {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(20px) saturate(1.2);
   -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .dark .card-subtle {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(16px) saturate(1.1);
   -webkit-backdrop-filter: blur(16px) saturate(1.1);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow:
     0 4px 16px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .dark .card:hover, .dark .card-subtle:hover {
   transform: translateY(-2px);
   box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    0 12px 40px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .dark .input-field {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.1);
   color: #DFEBF6;
 }
 
@@ -238,7 +233,7 @@
 }
 
 .dark .input-field:focus {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.1);
   border-color: rgba(170, 199, 216, 0.4);
   box-shadow: 0 0 0 3px rgba(170, 199, 216, 0.12);
 }
@@ -252,29 +247,29 @@
 }
 
 .dark .btn-secondary {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
   color: #AAC7D8;
 }
 
 .dark .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .dark .btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .dark .segmented-control {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .dark .segment-active {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.1);
   color: #DFEBF6;
 }
 
-/* Dark mode text — force readable on dark glass */
+/* Dark mode text */
 .dark h1, .dark h2, .dark h3, .dark h4 {
   color: #DFEBF6;
 }
@@ -296,28 +291,23 @@
   color: #DFEBF6;
 }
 
-/* Dark mode: remap hardcoded backgrounds globally */
+/* Dark mode: remap hardcoded backgrounds */
 .dark .bg-white {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-}
-
-.dark .bg-frost-white {
   background-color: rgba(255, 255, 255, 0.06) !important;
 }
 
-.dark .border-light-gray {
-  border-color: rgba(255, 255, 255, 0.07) !important;
-}
-
-.dark .border-b.border-light-gray,
-.dark .border-t.border-light-gray {
-  border-color: rgba(255, 255, 255, 0.07) !important;
-}
-
-.dark .hover\:bg-frost-white:hover {
+.dark .bg-frost-white {
   background-color: rgba(255, 255, 255, 0.08) !important;
 }
 
+.dark .border-light-gray {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .hover\:bg-frost-white:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
 .dark .divide-light-gray > :not(:last-child) {
-  border-color: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
 }
