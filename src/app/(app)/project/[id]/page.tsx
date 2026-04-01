@@ -32,6 +32,9 @@ import {
   Package,
   DollarSign,
   Calendar,
+  Pencil,
+  Check,
+  Plus,
 } from 'lucide-react';
 import type { ProjectDocument } from '@/stores/projectStore';
 import type { Project } from '@/types/project';
@@ -42,6 +45,8 @@ import { formatEventDate } from '@/lib/dateUtils';
 import Badge from '@/components/ui/Badge';
 import Card from '@/components/ui/Card';
 import ShareModal from '@/components/project/ShareModal';
+import CreateEventModal from '@/components/modals/CreateEventModal';
+import CreateTaskModal from '@/components/modals/CreateTaskModal';
 
 const EVENT_TYPE_ICONS: Record<string, typeof Search> = {
   inspection: Search,
@@ -111,11 +116,18 @@ export default function ProjectDetailPage() {
   const storeDocuments = documents.filter((d) => d.projectId === projectId);
   const project = storeProject;
 
+  const updateProject = useProjectStore((s) => s.updateProject);
+
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showCreateEvent, setShowCreateEvent] = useState(false);
+  const [showCreateTask, setShowCreateTask] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<Project>>({});
+  const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!project) {
@@ -158,6 +170,40 @@ export default function ProjectDetailPage() {
     }
   };
 
+  const startEditing = () => {
+    setEditForm({
+      name: project.name,
+      address: project.address,
+      city: project.city,
+      state: project.state,
+      description: project.description,
+      value: project.value,
+      startDate: project.startDate,
+      stage: project.stage,
+      sector: project.sector,
+      squareFootage: project.squareFootage,
+    });
+    setIsEditing(true);
+  };
+
+  const discardEdits = () => {
+    setIsEditing(false);
+    setEditForm({});
+  };
+
+  const saveEdits = async () => {
+    setSaving(true);
+    try {
+      await updateProject(projectId, editForm);
+      setIsEditing(false);
+      setEditForm({});
+    } catch (err) {
+      console.warn('Failed to save:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: <Home className="w-4 h-4" /> },
     { id: 'documents', label: 'Documents', icon: <FileText className="w-4 h-4" /> },
@@ -182,13 +228,44 @@ export default function ProjectDetailPage() {
               </div>
               <p className="text-sm text-slate-blue-gray mt-1">{project.stage}</p>
             </div>
-            <button
-              onClick={() => setShowShareModal(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-steel-blue text-white text-sm font-medium hover:bg-dark-navy transition-colors"
-            >
-              <Share2 className="w-4 h-4" />
-              Share
-            </button>
+            <div className="flex items-center gap-2">
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={discardEdits}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rejected/10 text-rejected text-sm font-medium hover:bg-rejected/20 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                    Discard
+                  </button>
+                  <button
+                    onClick={saveEdits}
+                    disabled={saving}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-approved text-white text-sm font-medium hover:bg-approved/90 transition-colors disabled:opacity-50"
+                  >
+                    <Check className="w-4 h-4" />
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={startEditing}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/40 dark:bg-white/5 border border-white/60 dark:border-white/8 text-sm font-medium hover:bg-white/60 dark:hover:bg-white/10 transition-colors"
+                  >
+                    <Pencil className="w-4 h-4" />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => setShowShareModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-steel-blue text-white text-sm font-medium hover:bg-dark-navy transition-colors"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    Share
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -221,6 +298,20 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
+      {/* Modals */}
+      <CreateEventModal
+        open={showCreateEvent}
+        onClose={() => setShowCreateEvent(false)}
+        initialProjectId={projectId}
+        initialProjectName={project.name}
+      />
+      <CreateTaskModal
+        open={showCreateTask}
+        onClose={() => setShowCreateTask(false)}
+        initialProjectId={projectId}
+        initialProjectName={project.name}
+      />
+
       {/* Content */}
       <div className="max-w-[1400px] mx-auto px-6 py-6 space-y-6">
         {activeTab === 'dashboard' ? (
@@ -230,6 +321,11 @@ export default function ProjectDetailPage() {
             tasks={projectTasks}
             events={projectEvents}
             documentCount={storeDocuments.length}
+            isEditing={isEditing}
+            editForm={editForm}
+            setEditForm={setEditForm}
+            onAddEvent={() => setShowCreateEvent(true)}
+            onAddTask={() => setShowCreateTask(true)}
           />
         ) : (
           <DocumentsTab
@@ -257,63 +353,125 @@ function DashboardTab({
   tasks,
   events: projectEvents,
   documentCount,
+  isEditing,
+  editForm,
+  setEditForm,
+  onAddEvent,
+  onAddTask,
 }: {
   project: Project;
   fullAddress: string;
   tasks: import('@/types/project').Task[];
   events: import('@/types/project').Event[];
   documentCount: number;
+  isEditing: boolean;
+  editForm: Partial<Project>;
+  setEditForm: (f: Partial<Project>) => void;
+  onAddEvent: () => void;
+  onAddTask: () => void;
 }) {
+  const ef = (field: keyof Project) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    setEditForm({ ...editForm, [field]: e.target.value });
+  };
+
+  const STAGES = ['Planning', 'Pre-Construction', 'Construction', 'Post-Construction', 'Completed'];
+  const SECTORS = ['General', 'Residential', 'Commercial', 'Industrial', 'Infrastructure', 'Healthcare', 'Education'];
+
   return (
     <>
       {/* Overview */}
       <motion.div {...fadeUp}>
         <Card>
-          <div className="flex items-start gap-2 text-slate-blue-gray mb-3">
-            <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
-            <span className="text-sm">{fullAddress}</span>
-          </div>
-          <p className="text-sm text-dark-navy mb-5">{project.description}</p>
+          {isEditing ? (
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-slate-blue-gray mb-1 block">Address</label>
+                <input className="input-field w-full" value={editForm.address || ''} onChange={ef('address')} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-slate-blue-gray mb-1 block">City</label>
+                  <input className="input-field w-full" value={editForm.city || ''} onChange={ef('city')} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-blue-gray mb-1 block">State</label>
+                  <input className="input-field w-full" value={editForm.state || ''} onChange={ef('state')} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-blue-gray mb-1 block">Description</label>
+                <textarea className="input-field w-full" rows={2} value={editForm.description || ''} onChange={ef('description')} />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-slate-blue-gray mb-1 block">Value</label>
+                  <input className="input-field w-full" value={editForm.value || ''} onChange={ef('value')} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-blue-gray mb-1 block">Start Date</label>
+                  <input type="date" className="input-field w-full" value={editForm.startDate?.slice(0, 10) || ''} onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value })} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-blue-gray mb-1 block">Name</label>
+                  <input className="input-field w-full" value={editForm.name || ''} onChange={ef('name')} />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-start gap-2 text-slate-blue-gray mb-3">
+                <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
+                <span className="text-sm">{fullAddress}</span>
+              </div>
+              <p className="text-sm text-dark-navy mb-5">{project.description}</p>
 
-          <div className="grid grid-cols-3 gap-4 mb-5">
-            <div>
-              <p className="text-xs text-slate-blue-gray mb-1">Value</p>
-              <p className="text-sm font-semibold text-dark-navy">{project.value}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-blue-gray mb-1">Start Date</p>
-              <p className="text-sm font-semibold text-dark-navy">{formatDate(project.startDate)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-blue-gray mb-1">Complete</p>
-              <p className="text-sm font-semibold text-dark-navy">
-                {Math.round(project.progress * 100)}%
-              </p>
-            </div>
-          </div>
+              <div className="grid grid-cols-3 gap-4 mb-5">
+                <div>
+                  <p className="text-xs text-slate-blue-gray mb-1">Value</p>
+                  <p className="text-sm font-semibold text-dark-navy">{project.value || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-blue-gray mb-1">Start Date</p>
+                  <p className="text-sm font-semibold text-dark-navy">{formatDate(project.startDate)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-blue-gray mb-1">Complete</p>
+                  <p className="text-sm font-semibold text-dark-navy">
+                    {Math.round(project.progress * 100)}%
+                  </p>
+                </div>
+              </div>
 
-          <div className="w-full h-2 bg-light-gray rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-steel-blue rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: `${project.progress * 100}%` }}
-              transition={{ duration: 0.8, ease: 'easeOut' }}
-            />
-          </div>
+              <div className="w-full h-2 bg-light-gray rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-steel-blue rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${project.progress * 100}%` }}
+                  transition={{ duration: 0.8, ease: 'easeOut' }}
+                />
+              </div>
+            </>
+          )}
         </Card>
       </motion.div>
 
       {/* Upcoming Tasks */}
       <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.05 }}>
-        <SectionHeader
-          icon={<CheckSquare className="w-5 h-5" />}
-          title="Upcoming Tasks"
-          count={tasks.length}
-        />
+        <div className="flex items-center justify-between">
+          <SectionHeader
+            icon={<CheckSquare className="w-5 h-5" />}
+            title="Upcoming Tasks"
+            count={tasks.length}
+          />
+          <button onClick={onAddTask} className="flex items-center gap-1 text-xs font-medium text-steel-blue hover:text-dark-navy transition-colors">
+            <Plus size={14} /> New Task
+          </button>
+        </div>
         {tasks.length === 0 ? (
           <Card>
             <p className="text-sm text-slate-blue-gray text-center py-6">
-              No tasks for this project yet.
+              No tasks for this project yet.{' '}
+              <button onClick={onAddTask} className="text-steel-blue font-medium hover:underline">Create one</button>
             </p>
           </Card>
         ) : (
@@ -338,13 +496,25 @@ function DashboardTab({
       </motion.div>
 
       {/* Events */}
-      {projectEvents.length > 0 && (
-        <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.1 }}>
+      <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.1 }}>
+        <div className="flex items-center justify-between">
           <SectionHeader
             icon={<Clock className="w-5 h-5" />}
             title="Events"
             count={projectEvents.length}
           />
+          <button onClick={onAddEvent} className="flex items-center gap-1 text-xs font-medium text-steel-blue hover:text-dark-navy transition-colors">
+            <Plus size={14} /> New Event
+          </button>
+        </div>
+        {projectEvents.length === 0 ? (
+          <Card>
+            <p className="text-sm text-slate-blue-gray text-center py-6">
+              No events yet.{' '}
+              <button onClick={onAddEvent} className="text-steel-blue font-medium hover:underline">Create one</button>
+            </p>
+          </Card>
+        ) : (
           <Card padding={false}>
             <div className="divide-y divide-light-gray">
               {projectEvents.map((event) => (
@@ -358,8 +528,8 @@ function DashboardTab({
               ))}
             </div>
           </Card>
-        </motion.div>
-      )}
+        )}
+      </motion.div>
 
       {/* Trades */}
       {project.trades && project.trades.length > 0 && (
@@ -382,12 +552,34 @@ function DashboardTab({
       <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.2 }}>
         <SectionHeader icon={<Info className="w-5 h-5" />} title="Project Details" />
         <Card padding={false}>
-          <div className="divide-y divide-light-gray">
-            <DetailRow label="Stage" value={project.stage} />
-            <DetailRow label="Sector" value={project.sector} />
-            <DetailRow label="Sq. Footage" value={`${project.squareFootage} sq ft`} />
-            <DetailRow label="Documents" value={String(documentCount)} />
-          </div>
+          {isEditing ? (
+            <div className="divide-y divide-light-gray">
+              <div className="flex items-center justify-between px-5 py-3.5">
+                <span className="text-sm text-slate-blue-gray">Stage</span>
+                <select className="input-field w-48 text-right text-sm" value={editForm.stage || ''} onChange={ef('stage')}>
+                  {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="flex items-center justify-between px-5 py-3.5">
+                <span className="text-sm text-slate-blue-gray">Sector</span>
+                <select className="input-field w-48 text-right text-sm" value={editForm.sector || ''} onChange={ef('sector')}>
+                  {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="flex items-center justify-between px-5 py-3.5">
+                <span className="text-sm text-slate-blue-gray">Sq. Footage</span>
+                <input className="input-field w-48 text-right text-sm" value={editForm.squareFootage || ''} onChange={ef('squareFootage')} placeholder="e.g. 2500" />
+              </div>
+              <DetailRow label="Documents" value={String(documentCount)} />
+            </div>
+          ) : (
+            <div className="divide-y divide-light-gray">
+              <DetailRow label="Stage" value={project.stage} />
+              <DetailRow label="Sector" value={project.sector} />
+              <DetailRow label="Sq. Footage" value={project.squareFootage ? `${project.squareFootage} sq ft` : '—'} />
+              <DetailRow label="Documents" value={String(documentCount)} />
+            </div>
+          )}
         </Card>
       </motion.div>
     </>

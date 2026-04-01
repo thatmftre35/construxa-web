@@ -68,6 +68,7 @@ interface ProjectState {
   isLoaded: boolean;
   fetchProjects: () => Promise<void>;
   addProject: (project: Omit<Project, 'id' | 'lastActivity' | 'progress' | 'status'>) => Promise<Project>;
+  updateProject: (id: string, updates: Partial<Omit<Project, 'id' | 'lastActivity' | 'progress'>>) => Promise<void>;
   getProject: (id: string) => Project | undefined;
   getProjectDocuments: (projectId: string) => ProjectDocument[];
   fetchDocuments: (projectId: string) => Promise<void>;
@@ -167,6 +168,39 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const newProject = rowToProject(inserted);
     set((state) => ({ projects: [newProject, ...state.projects] }));
     return newProject;
+  },
+
+  updateProject: async (id, updates) => {
+    const supabase = getSupabaseClient();
+    const row: Record<string, unknown> = {};
+    if (updates.name !== undefined) row.name = updates.name;
+    if (updates.address !== undefined) row.address = updates.address;
+    if (updates.city !== undefined) row.city = updates.city;
+    if (updates.state !== undefined) row.state = updates.state;
+    if (updates.description !== undefined) row.description = updates.description;
+    if (updates.value !== undefined) row.value = updates.value;
+    if (updates.startDate !== undefined) row.start_date = updates.startDate;
+    if (updates.completionDate !== undefined) row.completion_date = updates.completionDate;
+    if (updates.status !== undefined) row.status = updates.status;
+    if (updates.stage !== undefined) row.stage = updates.stage;
+    if (updates.sector !== undefined) row.sector = updates.sector;
+    if (updates.squareFootage !== undefined) row.square_footage = updates.squareFootage;
+    if (updates.trades !== undefined) row.trades = updates.trades;
+    if (updates.imageUrl !== undefined) row.image_url = updates.imageUrl;
+
+    const { data, error } = await supabase
+      .from('projects')
+      .update(row)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const updated = rowToProject(data);
+    set((state) => ({
+      projects: state.projects.map((p) => p.id === id ? { ...updated, isShared: p.isShared } : p),
+    }));
   },
 
   getProject: (id) => {

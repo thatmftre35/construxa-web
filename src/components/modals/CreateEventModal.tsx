@@ -41,9 +41,11 @@ interface Props {
   open: boolean;
   onClose: () => void;
   initialData?: Event | null;
+  initialProjectId?: string;
+  initialProjectName?: string;
 }
 
-export default function CreateEventModal({ open, onClose, initialData }: Props) {
+export default function CreateEventModal({ open, onClose, initialData, initialProjectId, initialProjectName }: Props) {
   const addEvent = useEventStore((s) => s.addEvent);
   const updateEvent = useEventStore((s) => s.updateEvent);
   const projects = useProjectStore((s) => s.projects);
@@ -70,8 +72,8 @@ export default function CreateEventModal({ open, onClose, initialData }: Props) 
     } else if (open) {
       setType('inspection');
       setDescription('');
-      setProjectId('');
-      setProjectSearch('');
+      setProjectId(initialProjectId || '');
+      setProjectSearch(initialProjectName || '');
       setEventDate('');
     }
     setError('');

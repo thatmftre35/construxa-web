@@ -10,9 +10,11 @@ interface Props {
   open: boolean;
   onClose: () => void;
   initialData?: Task | null;
+  initialProjectId?: string;
+  initialProjectName?: string;
 }
 
-export default function CreateTaskModal({ open, onClose, initialData }: Props) {
+export default function CreateTaskModal({ open, onClose, initialData, initialProjectId, initialProjectName }: Props) {
   const addTask = useTaskStore((s) => s.addTask);
   const updateTask = useTaskStore((s) => s.updateTask);
   const projects = useProjectStore((s) => s.projects);
@@ -42,8 +44,8 @@ export default function CreateTaskModal({ open, onClose, initialData }: Props) {
     } else if (open) {
       setTitle('');
       setDescription('');
-      setProjectId('');
-      setProjectSearch('');
+      setProjectId(initialProjectId || '');
+      setProjectSearch(initialProjectName || '');
       setDueDate('');
       setUrgency('low');
       setAssignee('');
