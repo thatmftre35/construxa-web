@@ -20,12 +20,24 @@
   --font-body: 'DM Sans', sans-serif;
 }
 
+/*
+ * Glassmorphism best practices:
+ * 1. Multi-layered gradient background (not flat) for the blur to reveal
+ * 2. Frosted cards: semi-transparent white + backdrop-blur + subtle border
+ * 3. HIGH CONTRAST text — always dark-navy (#29353C) on glass surfaces
+ * 4. Borders use white with moderate opacity for the glass edge highlight
+ */
+
 /* ── Light mode ── */
 @layer base {
   body {
     font-family: var(--font-body);
     color: var(--color-dark-navy);
-    background: linear-gradient(135deg, #DFEBF6 0%, #c9ddef 30%, #dce8f3 60%, #DFEBF6 100%);
+    background:
+      radial-gradient(ellipse at 20% 20%, rgba(170, 199, 216, 0.35) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, rgba(170, 199, 216, 0.25) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(223, 235, 246, 0.4) 0%, transparent 70%),
+      #DFEBF6;
     background-attachment: fixed;
     min-height: 100vh;
     transition: background 0.4s, color 0.4s;
@@ -35,20 +47,24 @@
 @layer components {
   .card {
     @apply rounded-2xl p-6;
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 255, 255, 0.7);
-    box-shadow: 0 8px 32px rgba(41, 53, 60, 0.06), 0 1px 2px rgba(41, 53, 60, 0.04);
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(20px) saturate(1.2);
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow:
+      0 8px 32px rgba(41, 53, 60, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
   }
 
   .card-subtle {
     @apply rounded-xl p-4;
-    background: rgba(255, 255, 255, 0.45);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 0 4px 16px rgba(41, 53, 60, 0.04);
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(16px) saturate(1.1);
+    -webkit-backdrop-filter: blur(16px) saturate(1.1);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow:
+      0 4px 16px rgba(41, 53, 60, 0.05),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
   }
 
   .btn-primary {
@@ -60,7 +76,7 @@
     @apply text-steel-blue font-semibold py-3 px-6 rounded-xl
            transition-all duration-200 border w-full text-center;
     background: rgba(255, 255, 255, 0.5);
-    border-color: rgba(255, 255, 255, 0.6);
+    border-color: rgba(255, 255, 255, 0.7);
   }
 
   .btn-secondary:hover {
@@ -80,18 +96,18 @@
   .input-field {
     @apply w-full rounded-xl px-4 py-3
            text-dark-navy placeholder:text-slate-blue-gray
-           focus:outline-none focus:ring-1
+           focus:outline-none
            transition-all duration-200;
-    background: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.65);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.8);
   }
 
   .input-field:focus {
-    background: rgba(255, 255, 255, 0.8);
-    border-color: var(--color-ice-blue);
-    box-shadow: 0 0 0 2px rgba(170, 199, 216, 0.25);
+    background: rgba(255, 255, 255, 0.85);
+    border-color: var(--color-steel-blue);
+    box-shadow: 0 0 0 3px rgba(68, 87, 109, 0.15);
   }
 
   .badge {
@@ -130,34 +146,43 @@
   }
 }
 
-/* ── Dark mode ── */
+/* ─────────────────────────────────────────────────────── */
+/*  DARK MODE                                              */
+/* ─────────────────────────────────────────────────────── */
+
 .dark body,
 .dark {
-  background: linear-gradient(135deg, #1a2229 0%, #1e2a33 30%, #1a2530 60%, #1a2229 100%);
+  background:
+    radial-gradient(ellipse at 20% 20%, rgba(68, 87, 109, 0.2) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(68, 87, 109, 0.15) 0%, transparent 50%),
+    #1a2229;
   background-attachment: fixed;
   color: #DFEBF6;
 }
 
+/* Dark glass cards */
 .dark .card {
   background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .dark .card-subtle {
   background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(16px) saturate(1.1);
+  -webkit-backdrop-filter: blur(16px) saturate(1.1);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .dark .input-field {
   background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border-color: rgba(255, 255, 255, 0.08);
   color: #DFEBF6;
 }
@@ -169,7 +194,7 @@
 .dark .input-field:focus {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(170, 199, 216, 0.4);
-  box-shadow: 0 0 0 2px rgba(170, 199, 216, 0.15);
+  box-shadow: 0 0 0 3px rgba(170, 199, 216, 0.12);
 }
 
 .dark .btn-primary {
@@ -203,7 +228,7 @@
   color: #DFEBF6;
 }
 
-/* Dark mode text — readable everywhere */
+/* Dark mode text — force readable on dark glass */
 .dark h1, .dark h2, .dark h3, .dark h4 {
   color: #DFEBF6;
 }
@@ -223,4 +248,30 @@
 .dark a.text-steel-blue:hover,
 .dark button.text-steel-blue:hover {
   color: #DFEBF6;
+}
+
+/* Dark mode: remap hardcoded backgrounds globally */
+.dark .bg-white {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+.dark .bg-frost-white {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.dark .border-light-gray {
+  border-color: rgba(255, 255, 255, 0.07) !important;
+}
+
+.dark .border-b.border-light-gray,
+.dark .border-t.border-light-gray {
+  border-color: rgba(255, 255, 255, 0.07) !important;
+}
+
+.dark .hover\:bg-frost-white:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .divide-light-gray > :not(:last-child) {
+  border-color: rgba(255, 255, 255, 0.07) !important;
 }

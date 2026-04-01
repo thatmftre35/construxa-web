@@ -164,14 +164,14 @@ export default function ProjectDetailPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-frost-white">
+    <div className="min-h-screen">
       {/* Header */}
-      <div className="bg-white border-b border-light-gray">
+      <div className="backdrop-blur-2xl bg-white/60 dark:bg-white/4 border-b border-white/60 dark:border-white/6">
         <div className="max-w-[1400px] mx-auto px-6 py-5">
           <div className="flex items-start gap-4">
             <Link
               href="/dashboard"
-              className="mt-1 p-2 rounded-xl hover:bg-frost-white transition-colors text-slate-blue-gray"
+              className="mt-1 p-2 rounded-xl hover:bg-white/40 dark:hover:bg-white/5 transition-colors text-slate-blue-gray"
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
@@ -422,7 +422,7 @@ function DocumentsTab({
       {/* File Preview Modal */}
       {previewDoc && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setPreviewDoc(null)}>
-          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div className="backdrop-blur-2xl bg-white/80 dark:bg-white/5 dark:border dark:border-white/8 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
             {/* Modal Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-light-gray">
               <div className="min-w-0 flex-1">
