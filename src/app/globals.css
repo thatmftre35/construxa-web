@@ -12,6 +12,9 @@
   --color-pending: #FF9F0A;
   --color-rejected: #FF3B30;
   --color-overlay: rgba(41, 53, 60, 0.6);
+  --color-glass: rgba(255, 255, 255, 0.55);
+  --color-glass-border: rgba(255, 255, 255, 0.35);
+  --color-glass-strong: rgba(255, 255, 255, 0.7);
 
   --font-display: 'Bebas Neue', sans-serif;
   --font-body: 'DM Sans', sans-serif;
@@ -22,17 +25,26 @@
     font-family: var(--font-body);
     color: var(--color-dark-navy);
     background-color: var(--color-frost-white);
+    transition: background-color 0.3s, color 0.3s;
+  }
+
+  .dark body,
+  .dark {
+    background-color: #1a2229;
+    color: #DFEBF6;
   }
 }
 
 @layer components {
   .card {
-    @apply bg-white rounded-2xl p-6 shadow-sm;
+    @apply rounded-2xl p-6 backdrop-blur-xl border border-glass-border;
+    background: rgba(255, 255, 255, 0.55);
     box-shadow: 0 4px 12px rgba(41, 53, 60, 0.08);
   }
 
   .card-subtle {
-    @apply bg-white rounded-xl p-4;
+    @apply rounded-xl p-4 backdrop-blur-lg border border-glass-border;
+    background: rgba(255, 255, 255, 0.5);
     box-shadow: 0 2px 6px rgba(41, 53, 60, 0.05);
   }
 
@@ -57,10 +69,11 @@
   }
 
   .input-field {
-    @apply w-full bg-white border border-light-gray rounded-xl px-4 py-3
+    @apply w-full border border-light-gray rounded-xl px-4 py-3
            text-dark-navy placeholder:text-slate-blue-gray
            focus:outline-none focus:border-steel-blue focus:ring-1 focus:ring-steel-blue
-           transition-colors duration-200;
+           transition-colors duration-200 backdrop-blur-sm;
+    background: rgba(255, 255, 255, 0.7);
   }
 
   .badge {
@@ -95,4 +108,50 @@
   .segment-active {
     @apply bg-white text-steel-blue shadow-sm;
   }
+}
+
+/* Dark mode overrides */
+.dark .card {
+  background: rgba(41, 53, 60, 0.6);
+  border-color: rgba(68, 87, 109, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.dark .card-subtle {
+  background: rgba(41, 53, 60, 0.5);
+  border-color: rgba(68, 87, 109, 0.25);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.dark .input-field {
+  background: rgba(41, 53, 60, 0.6);
+  border-color: rgba(68, 87, 109, 0.3);
+  color: #DFEBF6;
+}
+
+.dark .input-field::placeholder {
+  color: #768A96;
+}
+
+.dark .btn-primary {
+  background-color: #44576D;
+}
+
+.dark .btn-primary:hover {
+  background-color: #768A96;
+}
+
+.dark .btn-secondary {
+  background: rgba(41, 53, 60, 0.5);
+  border-color: rgba(68, 87, 109, 0.3);
+  color: #AAC7D8;
+}
+
+.dark .segmented-control {
+  background: rgba(41, 53, 60, 0.5);
+}
+
+.dark .segment-active {
+  background: rgba(68, 87, 109, 0.5);
+  color: #DFEBF6;
 }

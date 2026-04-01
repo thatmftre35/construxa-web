@@ -108,10 +108,10 @@ export default function CreateEventModal({ open, onClose, initialData }: Props) 
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-light-gray">
-          <h2 className="text-lg font-semibold text-dark-navy">{isEdit ? 'Edit Event' : 'Create Event'}</h2>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-frost-white text-slate-blue-gray"><X className="w-5 h-5" /></button>
+      <div className="rounded-2xl w-full max-w-lg shadow-xl backdrop-blur-xl border border-glass-border bg-glass-strong dark:bg-dark-navy/90 dark:border-steel-blue/20" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-light-gray dark:border-steel-blue/20">
+          <h2 className="text-lg font-semibold text-dark-navy dark:text-frost-white">{isEdit ? 'Edit Event' : 'Create Event'}</h2>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-frost-white dark:hover:bg-steel-blue/10 text-slate-blue-gray"><X className="w-5 h-5" /></button>
         </div>
 
         <div className="px-5 py-4 space-y-4">
@@ -127,14 +127,14 @@ export default function CreateEventModal({ open, onClose, initialData }: Props) 
               <ChevronDown className="w-4 h-4 text-slate-blue-gray shrink-0" />
             </button>
             {showTypePicker && (
-              <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-light-gray rounded-xl shadow-lg max-h-60 overflow-y-auto">
+              <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white dark:bg-dark-navy/95 border border-light-gray dark:border-steel-blue/20 rounded-xl shadow-lg max-h-60 overflow-y-auto">
                 {EVENT_TYPES.map((t) => {
                   const Icon = EVENT_TYPE_ICONS[t.value];
                   return (
                     <button
                       key={t.value}
                       onClick={() => { setType(t.value); setShowTypePicker(false); }}
-                      className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2.5 hover:bg-frost-white ${type === t.value ? 'text-steel-blue font-semibold' : 'text-dark-navy'}`}
+                      className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2.5 hover:bg-frost-white dark:hover:bg-steel-blue/10 ${type === t.value ? 'text-steel-blue font-semibold' : 'text-dark-navy dark:text-frost-white'}`}
                     >
                       <Icon className="w-4 h-4 shrink-0" />
                       {t.label}
@@ -161,12 +161,12 @@ export default function CreateEventModal({ open, onClose, initialData }: Props) 
               placeholder="Search projects..."
             />
             {showProjectDropdown && filteredProjects.length > 0 && (
-              <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-light-gray rounded-xl shadow-lg max-h-40 overflow-y-auto">
+              <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white dark:bg-dark-navy/95 border border-light-gray dark:border-steel-blue/20 rounded-xl shadow-lg max-h-40 overflow-y-auto">
                 {filteredProjects.map((p) => (
                   <button
                     key={p.id}
                     onClick={() => { setProjectId(p.id); setProjectSearch(p.name); setShowProjectDropdown(false); }}
-                    className="w-full text-left px-4 py-2.5 text-sm text-dark-navy hover:bg-frost-white"
+                    className="w-full text-left px-4 py-2.5 text-sm text-dark-navy dark:text-frost-white hover:bg-frost-white dark:hover:bg-steel-blue/10"
                   >
                     {p.name}
                   </button>
@@ -183,7 +183,7 @@ export default function CreateEventModal({ open, onClose, initialData }: Props) 
           {error && <p className="text-xs text-rejected">{error}</p>}
         </div>
 
-        <div className="px-5 py-4 border-t border-light-gray">
+        <div className="px-5 py-4 border-t border-light-gray dark:border-steel-blue/20">
           <button onClick={handleSubmit} disabled={loading} className="btn-primary w-full disabled:opacity-50">
             {loading ? 'Saving...' : isEdit ? 'Update Event' : 'Create Event'}
           </button>

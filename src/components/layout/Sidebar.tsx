@@ -55,7 +55,10 @@ export default function Sidebar({ isOpen, onClose, unreadCount = 0 }: SidebarPro
       {/* Sidebar */}
       <aside
         className={`
-          fixed top-0 left-0 z-50 h-full w-[280px] bg-white border-r border-light-gray
+          fixed top-0 left-0 z-50 h-full w-[280px]
+          backdrop-blur-xl border-r
+          bg-glass-strong/90 border-glass-border
+          dark:bg-dark-navy/90 dark:border-steel-blue/20
           flex flex-col transition-transform duration-300 ease-in-out
           lg:translate-x-0
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -64,14 +67,14 @@ export default function Sidebar({ isOpen, onClose, unreadCount = 0 }: SidebarPro
         {/* Close button (mobile) */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1 text-slate-blue-gray hover:text-dark-navy lg:hidden"
+          className="absolute top-4 right-4 p-1 text-slate-blue-gray hover:text-dark-navy dark:text-ice-blue dark:hover:text-frost-white lg:hidden"
         >
           <X size={20} />
         </button>
 
         {/* Logo */}
         <div className="px-6 pt-8 pb-6">
-          <h1 className="font-display text-3xl tracking-[6px] text-steel-blue">
+          <h1 className="font-display text-3xl tracking-[6px] text-steel-blue dark:text-ice-blue">
             CONSTRUXA
           </h1>
           <div className="mt-3 w-10 h-[3px] bg-ice-blue rounded-full" />
@@ -91,8 +94,8 @@ export default function Sidebar({ isOpen, onClose, unreadCount = 0 }: SidebarPro
                 className={`
                   flex items-center gap-3 py-3 px-4 rounded-xl transition-colors duration-200
                   ${isActive
-                    ? 'bg-frost-white text-steel-blue font-semibold'
-                    : 'text-slate-blue-gray hover:bg-frost-white/50'
+                    ? 'bg-frost-white text-steel-blue font-semibold dark:bg-steel-blue/20 dark:text-ice-blue'
+                    : 'text-slate-blue-gray hover:bg-frost-white/50 dark:text-ice-blue/70 dark:hover:bg-steel-blue/10'
                   }
                 `}
               >
@@ -109,24 +112,24 @@ export default function Sidebar({ isOpen, onClose, unreadCount = 0 }: SidebarPro
         </nav>
 
         {/* User profile card */}
-        <div className="p-4 border-t border-light-gray">
+        <div className="p-4 border-t border-light-gray dark:border-steel-blue/20">
           <div className="flex items-center gap-3">
             <div className="flex-shrink-0 w-10 h-10 rounded-full bg-steel-blue text-white flex items-center justify-center text-sm font-semibold">
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-dark-navy truncate">
+              <p className="text-sm font-semibold text-dark-navy dark:text-frost-white truncate">
                 {displayName}
               </p>
               {profile?.role && (
-                <p className="text-xs text-slate-blue-gray truncate">
+                <p className="text-xs text-slate-blue-gray dark:text-ice-blue truncate">
                   {profile.role}
                 </p>
               )}
             </div>
             <button
               onClick={() => signOut()}
-              className="flex-shrink-0 p-2 text-slate-blue-gray hover:text-rejected transition-colors rounded-lg hover:bg-frost-white"
+              className="flex-shrink-0 p-2 text-slate-blue-gray hover:text-rejected transition-colors rounded-lg hover:bg-frost-white dark:hover:bg-steel-blue/10"
               title="Sign out"
             >
               <LogOut size={18} />

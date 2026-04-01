@@ -135,10 +135,10 @@ export default function DashboardPage() {
     >
       {/* Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-dark-navy">
+        <h1 className="text-2xl sm:text-3xl font-bold text-dark-navy dark:text-frost-white">
           {greeting}, {displayName}
         </h1>
-        <p className="text-slate-blue-gray mt-1">
+        <p className="text-slate-blue-gray dark:text-ice-blue mt-1">
           Here&apos;s what&apos;s happening across your projects
         </p>
       </div>
@@ -156,7 +156,7 @@ export default function DashboardPage() {
       {/* Events / Alerts */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-dark-navy">Events</h2>
+          <h2 className="text-lg font-semibold text-dark-navy dark:text-frost-white">Events</h2>
           <button
             onClick={() => setShowCreateEvent(true)}
             className="text-sm text-steel-blue hover:text-dark-navy font-medium flex items-center gap-1"
@@ -186,7 +186,7 @@ export default function DashboardPage() {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-dark-navy text-sm flex items-center gap-1.5">
+                      <p className="font-semibold text-dark-navy dark:text-frost-white text-sm flex items-center gap-1.5">
                         {(() => { const Icon = EVENT_TYPE_ICONS[event.type] || Calendar; return <Icon size={14} className="text-steel-blue shrink-0" />; })()}
                         {EVENT_TYPE_LABELS[event.type] || event.type}
                       </p>
@@ -228,7 +228,7 @@ export default function DashboardPage() {
       {/* Recent Projects */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-dark-navy">Recent Projects</h2>
+          <h2 className="text-lg font-semibold text-dark-navy dark:text-frost-white">Recent Projects</h2>
           <button
             onClick={() => router.push('/search')}
             className="text-sm text-steel-blue hover:text-dark-navy font-medium flex items-center gap-1"
@@ -269,7 +269,7 @@ export default function DashboardPage() {
       {/* Tasks */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-dark-navy">Tasks</h2>
+          <h2 className="text-lg font-semibold text-dark-navy dark:text-frost-white">Tasks</h2>
           <button
             onClick={() => setShowCreateTask(true)}
             className="text-sm text-steel-blue hover:text-dark-navy font-medium flex items-center gap-1"
