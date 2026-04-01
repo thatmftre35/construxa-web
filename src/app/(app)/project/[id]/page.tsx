@@ -70,13 +70,13 @@ interface DocumentFolder {
   count: number;
 }
 
-const folders: DocumentFolder[] = [
-  { name: 'Drawings', icon: <FileText className="w-6 h-6" />, count: 12 },
-  { name: 'Site Photos', icon: <ImageIcon className="w-6 h-6" />, count: 48 },
-  { name: 'Submittals', icon: <FolderOpen className="w-6 h-6" />, count: 8 },
-  { name: 'RFIs', icon: <FileText className="w-6 h-6" />, count: 5 },
-  { name: 'Contracts', icon: <File className="w-6 h-6" />, count: 3 },
-  { name: 'Reports', icon: <FileText className="w-6 h-6" />, count: 7 },
+const DEFAULT_FOLDERS: DocumentFolder[] = [
+  { name: 'Drawings', icon: <FileText className="w-6 h-6" />, count: 0 },
+  { name: 'Site Photos', icon: <ImageIcon className="w-6 h-6" />, count: 0 },
+  { name: 'Submittals', icon: <FolderOpen className="w-6 h-6" />, count: 0 },
+  { name: 'RFIs', icon: <FileText className="w-6 h-6" />, count: 0 },
+  { name: 'Contracts', icon: <File className="w-6 h-6" />, count: 0 },
+  { name: 'Reports', icon: <FileText className="w-6 h-6" />, count: 0 },
 ];
 
 const fadeUp = {
@@ -610,6 +610,19 @@ function DocumentsTab({
   onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
   const [previewDoc, setPreviewDoc] = useState<ProjectDocument | null>(null);
+  const [customFolders, setCustomFolders] = useState<DocumentFolder[]>([]);
+  const [showNewFolder, setShowNewFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+
+  const allFolders = [...DEFAULT_FOLDERS, ...customFolders];
+
+  const handleCreateFolder = () => {
+    const name = newFolderName.trim();
+    if (!name || allFolders.some((f) => f.name.toLowerCase() === name.toLowerCase())) return;
+    setCustomFolders([...customFolders, { name, icon: <FolderOpen className="w-6 h-6" />, count: 0 }]);
+    setNewFolderName('');
+    setShowNewFolder(false);
+  };
 
   return (
     <>
@@ -728,8 +741,8 @@ function DocumentsTab({
       {/* Folder Grid */}
       {!selectedFolder && (
         <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.05 }}>
-          <div className="grid grid-cols-3 gap-3">
-            {folders.map((folder) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {allFolders.map((folder) => (
               <button
                 key={folder.name}
                 onClick={() => setSelectedFolder(folder.name)}
@@ -740,6 +753,31 @@ function DocumentsTab({
                 <p className="text-xs text-slate-blue-gray">{folder.count} files</p>
               </button>
             ))}
+            {showNewFolder ? (
+              <div className="card-subtle flex flex-col items-center gap-2 py-4 text-center">
+                <FolderOpen className="w-6 h-6 text-steel-blue" />
+                <input
+                  autoFocus
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleCreateFolder(); if (e.key === 'Escape') setShowNewFolder(false); }}
+                  placeholder="Folder name"
+                  className="input-field text-center text-sm w-full px-2 py-1"
+                />
+                <div className="flex gap-1.5">
+                  <button onClick={handleCreateFolder} className="text-xs font-medium text-approved hover:underline">Create</button>
+                  <button onClick={() => setShowNewFolder(false)} className="text-xs font-medium text-slate-blue-gray hover:underline">Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowNewFolder(true)}
+                className="card-subtle flex flex-col items-center justify-center gap-2 py-5 border-2 border-dashed border-ice-blue hover:border-steel-blue transition-colors text-center"
+              >
+                <Plus className="w-6 h-6 text-ice-blue" />
+                <p className="text-sm font-medium text-slate-blue-gray">New Folder</p>
+              </button>
+            )}
           </div>
         </motion.div>
       )}
