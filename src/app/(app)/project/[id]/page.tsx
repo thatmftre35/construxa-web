@@ -35,6 +35,12 @@ import {
   Pencil,
   Check,
   Plus,
+  Trash2,
+  FolderInput,
+  ChevronRight,
+  MoreVertical,
+  CheckCircle2,
+  Circle,
 } from 'lucide-react';
 import type { ProjectDocument } from '@/stores/projectStore';
 import type { Project } from '@/types/project';
@@ -111,6 +117,10 @@ export default function ProjectDetailPage() {
   useEffect(() => {
     if (projectId) fetchDocuments(projectId);
   }, [projectId, fetchDocuments]);
+
+  const deleteDocuments = useProjectStore((s) => s.deleteDocuments);
+  const moveDocuments = useProjectStore((s) => s.moveDocuments);
+  const renameDocument = useProjectStore((s) => s.renameDocument);
 
   const storeProject = projects.find((p) => p.id === projectId);
   const storeDocuments = documents.filter((d) => d.projectId === projectId);
@@ -337,6 +347,9 @@ export default function ProjectDetailPage() {
             uploadSuccess={uploadSuccess}
             fileInputRef={fileInputRef}
             onFileUpload={handleFileUpload}
+            onDeleteDocuments={deleteDocuments}
+            onMoveDocuments={moveDocuments}
+            onRenameDocument={renameDocument}
           />
         )}
       </div>
@@ -599,6 +612,9 @@ function DocumentsTab({
   uploadSuccess,
   fileInputRef,
   onFileUpload,
+  onDeleteDocuments,
+  onMoveDocuments,
+  onRenameDocument,
 }: {
   documents: ProjectDocument[];
   selectedFolder: string | null;
@@ -607,30 +623,119 @@ function DocumentsTab({
   uploadSuccess: string | null;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onDeleteDocuments: (ids: string[]) => Promise<void>;
+  onMoveDocuments: (ids: string[], folder: string) => Promise<void>;
+  onRenameDocument: (id: string, name: string) => Promise<void>;
 }) {
   const [previewDoc, setPreviewDoc] = useState<ProjectDocument | null>(null);
-  const [customFolders, setCustomFolders] = useState<DocumentFolder[]>([]);
+  const [customFolders, setCustomFolders] = useState<string[]>([]);
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [contextDoc, setContextDoc] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
-  const allFolders = [...DEFAULT_FOLDERS, ...customFolders];
+  // Build folder list from defaults + custom + any folders found in documents
+  const docFolders = new Set(documents.map((d) => d.folder).filter(Boolean));
+  const defaultFolderNames = DEFAULT_FOLDERS.map((f) => f.name);
+  const discoveredFolders = [...docFolders].filter(
+    (f) => !defaultFolderNames.includes(f) && !customFolders.includes(f)
+  );
+
+  // Get subfolders of current folder
+  const getSubfolders = (parent: string) => {
+    const prefix = parent + '/';
+    const subs = new Set<string>();
+    documents.forEach((d) => {
+      if (d.folder.startsWith(prefix)) {
+        const rest = d.folder.slice(prefix.length);
+        const next = rest.split('/')[0];
+        if (next) subs.add(next);
+      }
+    });
+    return [...subs];
+  };
+
+  // Folder path segments for breadcrumb
+  const folderSegments = selectedFolder ? selectedFolder.split('/') : [];
+
+  // Docs in current folder (exact match, not nested)
+  const folderDocs = selectedFolder
+    ? documents.filter((d) => d.folder === selectedFolder)
+    : documents;
+
+  const subfolders = selectedFolder ? getSubfolders(selectedFolder) : [];
+
+  // Count docs in a folder (including subfolders)
+  const countDocsInFolder = (folderName: string) => {
+    return documents.filter(
+      (d) => d.folder === folderName || d.folder.startsWith(folderName + '/')
+    ).length;
+  };
+
+  const allFolderNames = [...defaultFolderNames, ...customFolders, ...discoveredFolders];
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    if (selectedIds.size === folderDocs.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(folderDocs.map((d) => d.id)));
+    }
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const handleDelete = async () => {
+    await onDeleteDocuments([...selectedIds]);
+    setSelectedIds(new Set());
+    setShowDeleteConfirm(false);
+  };
+
+  const handleMove = async (targetFolder: string) => {
+    await onMoveDocuments([...selectedIds], targetFolder);
+    setSelectedIds(new Set());
+    setShowMoveModal(false);
+  };
+
+  const handleRename = async () => {
+    if (renamingId && renameValue.trim()) {
+      await onRenameDocument(renamingId, renameValue.trim());
+    }
+    setRenamingId(null);
+    setRenameValue('');
+  };
 
   const handleCreateFolder = () => {
     const name = newFolderName.trim();
-    if (!name || allFolders.some((f) => f.name.toLowerCase() === name.toLowerCase())) return;
-    setCustomFolders([...customFolders, { name, icon: <FolderOpen className="w-6 h-6" />, count: 0 }]);
+    if (!name) return;
+    const fullPath = selectedFolder ? `${selectedFolder}/${name}` : name;
+    if (allFolderNames.includes(fullPath)) return;
+    setCustomFolders([...customFolders, fullPath]);
     setNewFolderName('');
     setShowNewFolder(false);
   };
+
+  const isSelecting = selectedIds.size > 0;
 
   return (
     <>
       {/* File Preview Modal */}
       {previewDoc && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setPreviewDoc(null)}>
-          <div className="backdrop-blur-2xl bg-white/80 dark:bg-white/5 dark:border dark:border-white/8 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-light-gray">
+          <div className="modal-container rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-light-gray dark:border-white/10">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-dark-navy truncate">{previewDoc.name}</p>
                 <p className="text-xs text-slate-blue-gray mt-0.5">
@@ -639,23 +744,17 @@ function DocumentsTab({
               </div>
               <div className="flex items-center gap-2 ml-4">
                 {previewDoc.url && (
-                  <a
-                    href={previewDoc.url}
-                    download={previewDoc.name}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-2 rounded-lg hover:bg-frost-white transition-colors text-slate-blue-gray"
-                  >
+                  <a href={previewDoc.url} download={previewDoc.name} target="_blank" rel="noopener noreferrer"
+                    className="p-2 rounded-lg hover:bg-frost-white dark:hover:bg-white/5 transition-colors text-slate-blue-gray">
                     <Download className="w-5 h-5" />
                   </a>
                 )}
-                <button onClick={() => setPreviewDoc(null)} className="p-2 rounded-lg hover:bg-frost-white transition-colors text-slate-blue-gray">
+                <button onClick={() => setPreviewDoc(null)} className="p-2 rounded-lg hover:bg-frost-white dark:hover:bg-white/5 transition-colors text-slate-blue-gray">
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
-            {/* Modal Body */}
-            <div className="flex-1 overflow-auto flex items-center justify-center p-4 bg-frost-white min-h-[300px]">
+            <div className="flex-1 overflow-auto flex items-center justify-center p-4 bg-frost-white dark:bg-black/20 min-h-[300px]">
               {previewDoc.type.startsWith('image/') ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={previewDoc.url} alt={previewDoc.name} className="max-w-full max-h-[70vh] object-contain rounded-lg" />
@@ -667,13 +766,8 @@ function DocumentsTab({
                 <div className="text-center py-12">
                   <File className="w-16 h-16 text-ice-blue mx-auto mb-4" />
                   <p className="text-sm text-slate-blue-gray mb-4">Preview not available for this file type</p>
-                  <a
-                    href={previewDoc.url}
-                    download={previewDoc.name}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn-primary inline-flex items-center gap-2"
-                  >
+                  <a href={previewDoc.url} download={previewDoc.name} target="_blank" rel="noopener noreferrer"
+                    className="btn-primary inline-flex items-center gap-2">
                     <Download className="w-4 h-4" />
                     Download File
                   </a>
@@ -684,40 +778,112 @@ function DocumentsTab({
         </div>
       )}
 
+      {/* Move Modal */}
+      {showMoveModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setShowMoveModal(false)}>
+          <div className="modal-container rounded-2xl w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-light-gray dark:border-white/10">
+              <h3 className="text-base font-semibold text-dark-navy">Move to Folder</h3>
+              <button onClick={() => setShowMoveModal(false)} className="p-1.5 rounded-lg hover:bg-frost-white dark:hover:bg-white/5 text-slate-blue-gray">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-3 max-h-72 overflow-y-auto">
+              <button
+                onClick={() => handleMove('')}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-frost-white dark:hover:bg-white/5 transition-colors text-left"
+              >
+                <FolderOpen className="w-5 h-5 text-slate-blue-gray" />
+                <span className="text-sm text-dark-navy font-medium">Root (no folder)</span>
+              </button>
+              {allFolderNames.map((f) => (
+                <button
+                  key={f}
+                  onClick={() => handleMove(f)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-frost-white dark:hover:bg-white/5 transition-colors text-left ${
+                    f === selectedFolder ? 'bg-frost-white dark:bg-white/5' : ''
+                  }`}
+                >
+                  <FolderOpen className="w-5 h-5 text-steel-blue" />
+                  <span className="text-sm text-dark-navy">{f}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="modal-container rounded-2xl w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-5 text-center">
+              <Trash2 className="w-10 h-10 text-rejected mx-auto mb-3" />
+              <h3 className="text-base font-semibold text-dark-navy mb-1">Delete {selectedIds.size} file{selectedIds.size > 1 ? 's' : ''}?</h3>
+              <p className="text-sm text-slate-blue-gray mb-5">This action cannot be undone.</p>
+              <div className="flex gap-3">
+                <button onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-light-gray dark:border-white/10 text-sm font-medium text-dark-navy hover:bg-frost-white dark:hover:bg-white/5 transition-colors">
+                  Cancel
+                </button>
+                <button onClick={handleDelete}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-rejected text-white text-sm font-medium hover:bg-rejected/90 transition-colors">
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Selection Action Bar */}
+      {isSelecting && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-2 p-3 rounded-xl bg-steel-blue/10 dark:bg-steel-blue/20 border border-steel-blue/20"
+        >
+          <button onClick={selectAll} className="text-sm font-medium text-steel-blue hover:underline">
+            {selectedIds.size === folderDocs.length ? 'Deselect All' : 'Select All'}
+          </button>
+          <span className="text-sm text-slate-blue-gray">
+            {selectedIds.size} selected
+          </span>
+          <div className="flex-1" />
+          <button onClick={() => setShowMoveModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-steel-blue text-white text-sm font-medium hover:bg-dark-navy transition-colors">
+            <FolderInput className="w-4 h-4" />
+            Move
+          </button>
+          <button onClick={() => setShowDeleteConfirm(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rejected text-white text-sm font-medium hover:bg-rejected/90 transition-colors">
+            <Trash2 className="w-4 h-4" />
+            Delete
+          </button>
+          <button onClick={clearSelection}
+            className="p-1.5 rounded-lg hover:bg-white/50 dark:hover:bg-white/5 text-slate-blue-gray">
+            <X className="w-4 h-4" />
+          </button>
+        </motion.div>
+      )}
+
       {/* Upload Bar */}
       <motion.div {...fadeUp}>
         <div className="flex gap-3">
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="flex-1 flex items-center justify-center gap-2 py-3 border-2 border-dashed border-ice-blue rounded-xl text-sm font-medium text-steel-blue hover:bg-frost-white transition-colors disabled:opacity-50"
-          >
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+            className="flex-1 flex items-center justify-center gap-2 py-3 border-2 border-dashed border-ice-blue rounded-xl text-sm font-medium text-steel-blue hover:bg-frost-white transition-colors disabled:opacity-50">
             <Upload className="w-4 h-4" />
             {uploading ? 'Uploading...' : 'Upload'}
           </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="flex-1 flex items-center justify-center gap-2 py-3 border-2 border-dashed border-ice-blue rounded-xl text-sm font-medium text-steel-blue hover:bg-frost-white transition-colors disabled:opacity-50"
-          >
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+            className="flex-1 flex items-center justify-center gap-2 py-3 border-2 border-dashed border-ice-blue rounded-xl text-sm font-medium text-steel-blue hover:bg-frost-white transition-colors disabled:opacity-50">
             <Camera className="w-4 h-4" />
             Photo
           </button>
         </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          className="hidden"
-          onChange={onFileUpload}
-          accept="*/*"
-        />
-
+        <input ref={fileInputRef} type="file" className="hidden" onChange={onFileUpload} accept="*/*" />
         {uploadSuccess && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-sm text-approved font-medium mt-3"
-          >
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-approved font-medium mt-3">
             {uploadSuccess}
           </motion.p>
         )}
@@ -725,15 +891,26 @@ function DocumentsTab({
 
       {/* Breadcrumb */}
       {selectedFolder && (
-        <motion.div {...fadeUp} className="flex items-center gap-1 text-sm">
-          <button
-            onClick={() => setSelectedFolder(null)}
-            className="text-steel-blue hover:underline"
-          >
+        <motion.div {...fadeUp} className="flex items-center gap-1 text-sm flex-wrap">
+          <button onClick={() => setSelectedFolder(null)} className="text-steel-blue hover:underline">
             All Folders
           </button>
-          <span className="text-slate-blue-gray">/</span>
-          <span className="text-dark-navy font-medium">{selectedFolder}</span>
+          {folderSegments.map((seg, i) => {
+            const path = folderSegments.slice(0, i + 1).join('/');
+            const isLast = i === folderSegments.length - 1;
+            return (
+              <span key={path} className="flex items-center gap-1">
+                <ChevronRight className="w-3 h-3 text-slate-blue-gray" />
+                {isLast ? (
+                  <span className="text-dark-navy font-medium">{seg}</span>
+                ) : (
+                  <button onClick={() => setSelectedFolder(path)} className="text-steel-blue hover:underline">
+                    {seg}
+                  </button>
+                )}
+              </span>
+            );
+          })}
         </motion.div>
       )}
 
@@ -741,38 +918,39 @@ function DocumentsTab({
       {!selectedFolder && (
         <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.05 }}>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {allFolders.map((folder) => (
-              <button
-                key={folder.name}
-                onClick={() => setSelectedFolder(folder.name)}
-                className="card-subtle flex flex-col items-center gap-2 py-5 hover:shadow-md transition-shadow text-center"
-              >
+            {DEFAULT_FOLDERS.map((folder) => (
+              <button key={folder.name} onClick={() => setSelectedFolder(folder.name)}
+                className="card-subtle flex flex-col items-center gap-2 py-5 hover:shadow-md transition-shadow text-center">
                 <div className="text-steel-blue">{folder.icon}</div>
                 <p className="text-sm font-medium text-dark-navy">{folder.name}</p>
-                <p className="text-xs text-slate-blue-gray">{folder.count} files</p>
+                <p className="text-xs text-slate-blue-gray">{countDocsInFolder(folder.name)} files</p>
               </button>
             ))}
+            {[...customFolders, ...discoveredFolders]
+              .filter((f) => !f.includes('/'))
+              .map((f) => (
+                <button key={f} onClick={() => setSelectedFolder(f)}
+                  className="card-subtle flex flex-col items-center gap-2 py-5 hover:shadow-md transition-shadow text-center">
+                  <FolderOpen className="w-6 h-6 text-steel-blue" />
+                  <p className="text-sm font-medium text-dark-navy">{f}</p>
+                  <p className="text-xs text-slate-blue-gray">{countDocsInFolder(f)} files</p>
+                </button>
+              ))}
             {showNewFolder ? (
               <div className="card-subtle flex flex-col items-center gap-2 py-4 text-center">
                 <FolderOpen className="w-6 h-6 text-steel-blue" />
-                <input
-                  autoFocus
-                  value={newFolderName}
+                <input autoFocus value={newFolderName}
                   onChange={(e) => setNewFolderName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleCreateFolder(); if (e.key === 'Escape') setShowNewFolder(false); }}
-                  placeholder="Folder name"
-                  className="input-field text-center text-sm w-full px-2 py-1"
-                />
+                  placeholder="Folder name" className="input-field text-center text-sm w-full px-2 py-1" />
                 <div className="flex gap-1.5">
                   <button onClick={handleCreateFolder} className="text-xs font-medium text-approved hover:underline">Create</button>
                   <button onClick={() => setShowNewFolder(false)} className="text-xs font-medium text-slate-blue-gray hover:underline">Cancel</button>
                 </div>
               </div>
             ) : (
-              <button
-                onClick={() => setShowNewFolder(true)}
-                className="card-subtle flex flex-col items-center justify-center gap-2 py-5 border-2 border-dashed border-ice-blue hover:border-steel-blue transition-colors text-center"
-              >
+              <button onClick={() => setShowNewFolder(true)}
+                className="card-subtle flex flex-col items-center justify-center gap-2 py-5 border-2 border-dashed border-ice-blue hover:border-steel-blue transition-colors text-center">
                 <Plus className="w-6 h-6 text-ice-blue" />
                 <p className="text-sm font-medium text-slate-blue-gray">New Folder</p>
               </button>
@@ -781,23 +959,66 @@ function DocumentsTab({
         </motion.div>
       )}
 
+      {/* Subfolders (when inside a folder) */}
+      {selectedFolder && subfolders.length > 0 && (
+        <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.05 }}>
+          <SectionHeader icon={<FolderOpen className="w-5 h-5" />} title="Subfolders" count={subfolders.length} />
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {subfolders.map((sub) => {
+              const fullPath = `${selectedFolder}/${sub}`;
+              return (
+                <button key={sub} onClick={() => setSelectedFolder(fullPath)}
+                  className="card-subtle flex flex-col items-center gap-2 py-4 hover:shadow-md transition-shadow text-center">
+                  <FolderOpen className="w-6 h-6 text-steel-blue" />
+                  <p className="text-sm font-medium text-dark-navy">{sub}</p>
+                  <p className="text-xs text-slate-blue-gray">{countDocsInFolder(fullPath)} files</p>
+                </button>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
+
+      {/* New Subfolder button (when inside a folder) */}
+      {selectedFolder && (
+        <motion.div {...fadeUp}>
+          {showNewFolder ? (
+            <div className="flex items-center gap-2">
+              <FolderOpen className="w-5 h-5 text-steel-blue shrink-0" />
+              <input autoFocus value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleCreateFolder(); if (e.key === 'Escape') { setShowNewFolder(false); setNewFolderName(''); } }}
+                placeholder="Subfolder name" className="input-field text-sm flex-1" />
+              <button onClick={handleCreateFolder} className="text-xs font-medium text-approved hover:underline">Create</button>
+              <button onClick={() => { setShowNewFolder(false); setNewFolderName(''); }} className="text-xs font-medium text-slate-blue-gray hover:underline">Cancel</button>
+            </div>
+          ) : (
+            <button onClick={() => setShowNewFolder(true)}
+              className="flex items-center gap-2 text-sm text-steel-blue hover:underline font-medium">
+              <Plus className="w-4 h-4" />
+              New Subfolder
+            </button>
+          )}
+        </motion.div>
+      )}
+
       {/* Files List */}
       <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.1 }}>
         <SectionHeader
           icon={<FileText className="w-5 h-5" />}
-          title={selectedFolder ? `${selectedFolder}` : 'Recent Files'}
-          count={documents.length}
+          title={selectedFolder || 'All Files'}
+          count={folderDocs.length}
         />
 
-        {documents.length === 0 ? (
+        {folderDocs.length === 0 ? (
           <Card>
             <div className="text-center py-8">
               <FolderOpen className="w-10 h-10 text-ice-blue mx-auto mb-3" />
-              <p className="text-sm text-slate-blue-gray mb-4">No documents yet</p>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="btn-primary inline-flex items-center gap-2 w-auto"
-              >
+              <p className="text-sm text-slate-blue-gray mb-4">
+                {selectedFolder ? 'No documents in this folder' : 'No documents yet'}
+              </p>
+              <button onClick={() => fileInputRef.current?.click()}
+                className="btn-primary inline-flex items-center gap-2 w-auto">
                 <Upload className="w-4 h-4" />
                 Upload Document
               </button>
@@ -805,43 +1026,98 @@ function DocumentsTab({
           </Card>
         ) : (
           <Card padding={false}>
-            <div className="divide-y divide-light-gray">
-              {documents.map((doc) => {
+            <div className="divide-y divide-light-gray dark:divide-white/6">
+              {folderDocs.map((doc) => {
                 const isImage = doc.type.startsWith('image/');
+                const isSelected = selectedIds.has(doc.id);
+                const isRenaming = renamingId === doc.id;
                 return (
-                  <button
-                    key={doc.id}
-                    onClick={() => setPreviewDoc(doc)}
-                    className="w-full flex items-center gap-3 px-5 py-3 hover:bg-frost-white transition-colors text-left"
-                  >
-                    {isImage ? (
-                      <div className="w-10 h-10 rounded-lg bg-frost-white overflow-hidden shrink-0">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={doc.url}
-                          alt={doc.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-10 h-10 rounded-lg bg-frost-white flex items-center justify-center shrink-0">
-                        <File className="w-5 h-5 text-steel-blue" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-dark-navy truncate">{doc.name}</p>
-                      <p className="text-xs text-slate-blue-gray mt-0.5">
-                        {doc.type.split('/')[1]?.toUpperCase() || 'FILE'} &middot;{' '}
-                        {formatDate(doc.uploadedAt)} &middot; {formatFileSize(doc.size)}
-                      </p>
-                    </div>
+                  <div key={doc.id} className={`flex items-center gap-3 px-5 py-3 transition-colors ${
+                    isSelected ? 'bg-steel-blue/5 dark:bg-steel-blue/10' : 'hover:bg-frost-white dark:hover:bg-white/3'
+                  }`}>
+                    {/* Selection Checkbox */}
+                    <button onClick={() => toggleSelect(doc.id)} className="shrink-0">
+                      {isSelected ? (
+                        <CheckCircle2 className="w-5 h-5 text-steel-blue" />
+                      ) : (
+                        <Circle className="w-5 h-5 text-ice-blue hover:text-steel-blue transition-colors" />
+                      )}
+                    </button>
+
+                    {/* Thumbnail */}
+                    <button onClick={() => !isRenaming && setPreviewDoc(doc)} className="shrink-0">
+                      {isImage ? (
+                        <div className="w-10 h-10 rounded-lg bg-frost-white overflow-hidden">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={doc.url} alt={doc.name} className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-frost-white dark:bg-white/5 flex items-center justify-center">
+                          <File className="w-5 h-5 text-steel-blue" />
+                        </div>
+                      )}
+                    </button>
+
+                    {/* Info */}
+                    <button onClick={() => !isRenaming && setPreviewDoc(doc)} className="flex-1 min-w-0 text-left">
+                      {isRenaming ? (
+                        <input autoFocus value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') { setRenamingId(null); setRenameValue(''); } }}
+                          onBlur={handleRename}
+                          className="input-field text-sm w-full" />
+                      ) : (
+                        <>
+                          <p className="text-sm font-medium text-dark-navy truncate">{doc.name}</p>
+                          <p className="text-xs text-slate-blue-gray mt-0.5">
+                            {doc.type.split('/')[1]?.toUpperCase() || 'FILE'} &middot;{' '}
+                            {formatDate(doc.uploadedAt)} &middot; {formatFileSize(doc.size)}
+                          </p>
+                        </>
+                      )}
+                    </button>
+
                     {doc.storagePath && (
-                      <span className="flex items-center gap-1 text-xs text-approved font-medium">
+                      <span className="flex items-center gap-1 text-xs text-approved font-medium shrink-0">
                         <Cloud className="w-3 h-3" />
-                        Synced
                       </span>
                     )}
-                  </button>
+
+                    {/* Context Menu */}
+                    <div className="relative shrink-0">
+                      <button onClick={() => setContextDoc(contextDoc === doc.id ? null : doc.id)}
+                        className="p-1.5 rounded-lg hover:bg-frost-white dark:hover:bg-white/5 text-slate-blue-gray transition-colors">
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                      {contextDoc === doc.id && (
+                        <div className="absolute right-0 top-full mt-1 z-20 w-40 py-1 rounded-xl shadow-lg border border-light-gray dark:border-white/10 bg-white dark:bg-[rgb(41,53,60)]">
+                          <button onClick={() => { setPreviewDoc(doc); setContextDoc(null); }}
+                            className="w-full px-3 py-2 text-left text-sm text-dark-navy hover:bg-frost-white dark:hover:bg-white/5 transition-colors">
+                            Preview
+                          </button>
+                          <button onClick={() => { setRenamingId(doc.id); setRenameValue(doc.name); setContextDoc(null); }}
+                            className="w-full px-3 py-2 text-left text-sm text-dark-navy hover:bg-frost-white dark:hover:bg-white/5 transition-colors">
+                            Rename
+                          </button>
+                          <button onClick={() => { setSelectedIds(new Set([doc.id])); setShowMoveModal(true); setContextDoc(null); }}
+                            className="w-full px-3 py-2 text-left text-sm text-dark-navy hover:bg-frost-white dark:hover:bg-white/5 transition-colors">
+                            Move to...
+                          </button>
+                          {doc.url && (
+                            <a href={doc.url} download={doc.name} target="_blank" rel="noopener noreferrer"
+                              onClick={() => setContextDoc(null)}
+                              className="block w-full px-3 py-2 text-left text-sm text-dark-navy hover:bg-frost-white dark:hover:bg-white/5 transition-colors">
+                              Download
+                            </a>
+                          )}
+                          <button onClick={() => { setSelectedIds(new Set([doc.id])); setShowDeleteConfirm(true); setContextDoc(null); }}
+                            className="w-full px-3 py-2 text-left text-sm text-rejected hover:bg-frost-white dark:hover:bg-white/5 transition-colors">
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 );
               })}
             </div>

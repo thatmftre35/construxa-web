@@ -13,6 +13,7 @@ export interface ProjectDocument {
   size: number;
   uploadedAt: string;
   storagePath?: string;
+  folder: string;
 }
 
 // Maps Supabase row to our Project type
@@ -59,6 +60,7 @@ function rowToDocument(row: Record<string, unknown>): ProjectDocument {
     size: row.size as number,
     uploadedAt: row.created_at as string,
     storagePath: row.storage_path as string,
+    folder: (row.folder as string) || '',
   };
 }
 
@@ -72,7 +74,10 @@ interface ProjectState {
   getProject: (id: string) => Project | undefined;
   getProjectDocuments: (projectId: string) => ProjectDocument[];
   fetchDocuments: (projectId: string) => Promise<void>;
-  uploadDocument: (projectId: string, file: File) => Promise<ProjectDocument | null>;
+  uploadDocument: (projectId: string, file: File, folder?: string) => Promise<ProjectDocument | null>;
+  deleteDocuments: (ids: string[]) => Promise<void>;
+  moveDocuments: (ids: string[], folder: string) => Promise<void>;
+  renameDocument: (id: string, name: string) => Promise<void>;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -254,7 +259,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
   },
 
-  uploadDocument: async (projectId, file) => {
+  uploadDocument: async (projectId, file, folder = '') => {
     try {
       const supabase = getSupabaseClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -283,7 +288,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
           type: file.type,
           size: file.size,
           storage_path: storagePath,
-          folder: '',
+          folder,
         })
         .select()
         .single();
@@ -312,6 +317,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         size: file.size,
         uploadedAt: new Date().toISOString(),
         storagePath: storagePath || undefined,
+        folder,
       };
 
       set((state) => ({ documents: [...state.documents, newDoc] }));
@@ -327,9 +333,77 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         type: file.type,
         size: file.size,
         uploadedAt: new Date().toISOString(),
+        folder,
       };
       set((state) => ({ documents: [...state.documents, newDoc] }));
       return newDoc;
+    }
+  },
+
+  deleteDocuments: async (ids) => {
+    try {
+      const supabase = getSupabaseClient();
+
+      // Delete from storage first
+      const docs = get().documents.filter((d) => ids.includes(d.id));
+      const storagePaths = docs.map((d) => d.storagePath).filter(Boolean) as string[];
+      if (storagePaths.length > 0) {
+        await supabase.storage.from('documents').remove(storagePaths);
+      }
+
+      // Delete from DB
+      const { error } = await supabase
+        .from('documents')
+        .delete()
+        .in('id', ids);
+
+      if (error) console.warn('Failed to delete documents:', error.message);
+
+      set((state) => ({
+        documents: state.documents.filter((d) => !ids.includes(d.id)),
+      }));
+    } catch (err) {
+      console.warn('Error deleting documents:', err);
+    }
+  },
+
+  moveDocuments: async (ids, folder) => {
+    try {
+      const supabase = getSupabaseClient();
+      const { error } = await supabase
+        .from('documents')
+        .update({ folder })
+        .in('id', ids);
+
+      if (error) console.warn('Failed to move documents:', error.message);
+
+      set((state) => ({
+        documents: state.documents.map((d) =>
+          ids.includes(d.id) ? { ...d, folder } : d
+        ),
+      }));
+    } catch (err) {
+      console.warn('Error moving documents:', err);
+    }
+  },
+
+  renameDocument: async (id, name) => {
+    try {
+      const supabase = getSupabaseClient();
+      const { error } = await supabase
+        .from('documents')
+        .update({ name })
+        .eq('id', id);
+
+      if (error) console.warn('Failed to rename document:', error.message);
+
+      set((state) => ({
+        documents: state.documents.map((d) =>
+          d.id === id ? { ...d, name } : d
+        ),
+      }));
+    } catch (err) {
+      console.warn('Error renaming document:', err);
     }
   },
 }));
