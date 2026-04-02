@@ -270,14 +270,6 @@ export default function ProjectDetailPage() {
           </div>
         </div>
 
-        {showShareModal && (
-          <ShareModal
-            projectId={projectId}
-            projectName={project.name}
-            onClose={() => setShowShareModal(false)}
-          />
-        )}
-
         {/* Tab Bar */}
         <div className="px-6 border-t border-white/40 dark:border-white/6">
           <div className="flex gap-6">
@@ -301,6 +293,13 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* Modals */}
+      {showShareModal && (
+        <ShareModal
+          projectId={projectId}
+          projectName={project.name}
+          onClose={() => setShowShareModal(false)}
+        />
+      )}
       <CreateEventModal
         open={showCreateEvent}
         onClose={() => setShowCreateEvent(false)}
