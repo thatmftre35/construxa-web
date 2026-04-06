@@ -135,6 +135,8 @@ export default function ProjectDetailPage() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showCreateEvent, setShowCreateEvent] = useState(false);
   const [showCreateTask, setShowCreateTask] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Project>>({});
   const [saving, setSaving] = useState(false);
@@ -160,14 +162,11 @@ export default function ProjectDetailPage() {
 
   const fullAddress = `${project.address}, ${project.city}, ${project.state}`;
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const doUploadFile = async (file: File, folder: string) => {
     setUploading(true);
     setUploadSuccess(null);
     try {
-      const doc = await uploadDocument(projectId, file);
+      const doc = await uploadDocument(projectId, file, folder);
       if (doc) {
         setUploadSuccess(`"${doc.name}" uploaded successfully`);
         setTimeout(() => setUploadSuccess(null), 3000);
@@ -177,6 +176,26 @@ export default function ProjectDetailPage() {
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (selectedFolder) {
+      await doUploadFile(file, selectedFolder);
+    } else {
+      setPendingFile(file);
+      setShowFolderPicker(true);
+    }
+  };
+
+  const handleFolderPickForUpload = async (folder: string) => {
+    setShowFolderPicker(false);
+    if (pendingFile) {
+      await doUploadFile(pendingFile, folder);
+      setPendingFile(null);
     }
   };
 
@@ -309,6 +328,30 @@ export default function ProjectDetailPage() {
           projectName={project.name}
           onClose={() => setShowShareModal(false)}
         />
+      )}
+      {showFolderPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl p-6 w-80 max-h-[70vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Choose Folder</h3>
+            <div className="space-y-2">
+              {DEFAULT_FOLDERS.map((f) => (
+                <button
+                  key={f.name}
+                  className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-white transition-colors"
+                  onClick={() => handleFolderPickForUpload(f.name)}
+                >
+                  {f.name}
+                </button>
+              ))}
+            </div>
+            <button
+              className="mt-4 w-full text-center text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              onClick={() => { setShowFolderPicker(false); setPendingFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
       <CreateEventModal
         open={showCreateEvent}
@@ -645,13 +688,24 @@ function DocumentsTab({
     (f) => !defaultFolderNames.includes(f) && !customFolders.includes(f)
   );
 
-  // Get subfolders of current folder
+  const allFolderNames = [...defaultFolderNames, ...customFolders, ...discoveredFolders];
+
+  // Get subfolders of current folder (from docs AND custom folders)
   const getSubfolders = (parent: string) => {
     const prefix = parent + '/';
     const subs = new Set<string>();
+    // From document folder paths
     documents.forEach((d) => {
       if (d.folder.startsWith(prefix)) {
         const rest = d.folder.slice(prefix.length);
+        const next = rest.split('/')[0];
+        if (next) subs.add(next);
+      }
+    });
+    // From custom folders list
+    allFolderNames.forEach((f) => {
+      if (f.startsWith(prefix)) {
+        const rest = f.slice(prefix.length);
         const next = rest.split('/')[0];
         if (next) subs.add(next);
       }
@@ -675,8 +729,6 @@ function DocumentsTab({
       (d) => d.folder === folderName || d.folder.startsWith(folderName + '/')
     ).length;
   };
-
-  const allFolderNames = [...defaultFolderNames, ...customFolders, ...discoveredFolders];
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
