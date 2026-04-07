@@ -322,3 +322,84 @@ create policy "Users can update own tasks"
 create policy "Users can delete own tasks"
   on public.tasks for delete
   using (auth.uid() = user_id);
+
+-- ============================================================
+-- Messages table
+-- ============================================================
+create table if not exists public.messages (
+  id uuid default gen_random_uuid() primary key,
+  sender_id uuid references auth.users(id) on delete cascade not null,
+  recipient_id uuid references auth.users(id) on delete cascade,
+  recipient_email text,
+  project_id uuid references public.projects(id) on delete cascade,
+  subject text not null default '',
+  body text not null,
+  read boolean not null default false,
+  created_at timestamptz default now() not null
+);
+
+alter table public.messages enable row level security;
+
+create policy "Users can view messages they sent or received"
+  on public.messages for select
+  using (
+    auth.uid() = sender_id
+    or auth.uid() = recipient_id
+    or recipient_email = (select email from auth.users where id = auth.uid())
+  );
+
+create policy "Users can send messages"
+  on public.messages for insert
+  with check (auth.uid() = sender_id);
+
+create policy "Recipients can mark messages read"
+  on public.messages for update
+  using (
+    auth.uid() = recipient_id
+    or recipient_email = (select email from auth.users where id = auth.uid())
+  );
+
+create policy "Sender or recipient can delete messages"
+  on public.messages for delete
+  using (auth.uid() = sender_id or auth.uid() = recipient_id);
+
+-- ============================================================
+-- Announcements table
+-- ============================================================
+create table if not exists public.announcements (
+  id uuid default gen_random_uuid() primary key,
+  author_id uuid references auth.users(id) on delete cascade not null,
+  project_id uuid references public.projects(id) on delete cascade,
+  title text not null,
+  description text not null default '',
+  announcement_date date not null default current_date,
+  urgency text not null default 'green' check (urgency in ('red','yellow','green')),
+  created_at timestamptz default now() not null
+);
+
+alter table public.announcements enable row level security;
+
+create policy "Users can view announcements they authored"
+  on public.announcements for select
+  using (auth.uid() = author_id);
+
+create policy "Project members can view announcements"
+  on public.announcements for select
+  using (
+    project_id is not null and (
+      exists (select 1 from public.projects where projects.id = announcements.project_id and projects.user_id = auth.uid())
+      or exists (select 1 from public.project_shares where project_shares.project_id = announcements.project_id and project_shares.shared_with_id = auth.uid())
+    )
+  );
+
+create policy "Users can create announcements"
+  on public.announcements for insert
+  with check (auth.uid() = author_id);
+
+create policy "Authors can update announcements"
+  on public.announcements for update
+  using (auth.uid() = author_id);
+
+create policy "Authors can delete announcements"
+  on public.announcements for delete
+  using (auth.uid() = author_id);

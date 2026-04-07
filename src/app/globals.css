@@ -213,23 +213,23 @@
 
 /* Dark glass cards */
 .dark .card {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(41, 53, 60, 0.88);
   backdrop-filter: blur(20px) saturate(1.2);
   -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(118, 138, 150, 0.2);
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .dark .card-subtle {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(41, 53, 60, 0.78);
   backdrop-filter: blur(16px) saturate(1.1);
   -webkit-backdrop-filter: blur(16px) saturate(1.1);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(118, 138, 150, 0.18);
   box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    0 4px 16px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .dark .card:hover, .dark .card-subtle:hover {
