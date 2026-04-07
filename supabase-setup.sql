@@ -403,3 +403,30 @@ create policy "Authors can update announcements"
 create policy "Authors can delete announcements"
   on public.announcements for delete
   using (auth.uid() = author_id);
+
+-- ============================================================
+-- Allow viewing profiles of project collaborators (so messaging
+-- can list members of shared projects by name)
+-- ============================================================
+drop policy if exists "View collaborator profiles" on public.profiles;
+create policy "View collaborator profiles"
+  on public.profiles for select
+  using (
+    -- I can see profiles of users who share a project with me
+    exists (
+      select 1
+      from public.projects p
+      left join public.project_shares ps on ps.project_id = p.id
+      where (
+        -- profile belongs to project owner of a project I'm shared on
+        (p.user_id = profiles.id and ps.shared_with_id = auth.uid())
+        -- profile belongs to a shared user on a project I own
+        or (ps.shared_with_id = profiles.id and p.user_id = auth.uid())
+        -- profile belongs to a shared user on a project I'm also shared on
+        or (ps.shared_with_id = profiles.id and exists (
+          select 1 from public.project_shares ps2
+          where ps2.project_id = p.id and ps2.shared_with_id = auth.uid()
+        ))
+      )
+    )
+  );

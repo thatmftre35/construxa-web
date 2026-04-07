@@ -114,7 +114,10 @@ export async function sendMessage(params: {
     subject: params.subject || '',
     body: params.body,
   });
-  if (error) return { error: error.message };
+  if (error) {
+    console.warn('sendMessage error:', error);
+    return { error: error.message || 'Failed to send message' };
+  }
   return {};
 }
 
@@ -170,6 +173,10 @@ export async function createAnnouncement(params: {
 
 export async function getProjectMembers(projectId: string): Promise<ProjectMember[]> {
   const members: ProjectMember[] = [];
+  const seen = new Set<string>();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  const myId = user?.id;
 
   const { data: project } = await supabase
     .from('projects')
@@ -177,19 +184,18 @@ export async function getProjectMembers(projectId: string): Promise<ProjectMembe
     .eq('id', projectId)
     .single();
 
-  if (project?.user_id) {
+  if (project?.user_id && project.user_id !== myId) {
     const { data: ownerProfile } = await supabase
       .from('profiles')
       .select('id, full_name')
       .eq('id', project.user_id)
-      .single();
-    if (ownerProfile) {
-      members.push({
-        userId: ownerProfile.id as string,
-        name: (ownerProfile.full_name as string) || 'Owner',
-        email: null,
-      });
-    }
+      .maybeSingle();
+    members.push({
+      userId: project.user_id as string,
+      name: (ownerProfile?.full_name as string) || 'Project owner',
+      email: null,
+    });
+    seen.add(project.user_id as string);
   }
 
   const { data: shares } = await supabase
@@ -200,18 +206,34 @@ export async function getProjectMembers(projectId: string): Promise<ProjectMembe
   if (shares) {
     for (const s of shares) {
       const sid = (s as Record<string, unknown>).shared_with_id as string;
+      if (!sid || sid === myId || seen.has(sid)) continue;
       const { data: profile } = await supabase
         .from('profiles')
         .select('id, full_name')
         .eq('id', sid)
-        .single();
-      if (profile) {
-        members.push({
-          userId: profile.id as string,
-          name: (profile.full_name as string) || 'Member',
-          email: null,
-        });
-      }
+        .maybeSingle();
+      members.push({
+        userId: sid,
+        name: (profile?.full_name as string) || 'Collaborator',
+        email: null,
+      });
+      seen.add(sid);
+    }
+  }
+
+  // Pending invitations (people invited by email but haven't signed up yet)
+  const { data: invites } = await supabase
+    .from('project_invitations')
+    .select('email, status')
+    .eq('project_id', projectId)
+    .eq('status', 'pending');
+
+  if (invites) {
+    for (const inv of invites) {
+      const email = (inv as Record<string, unknown>).email as string;
+      if (!email || seen.has(email)) continue;
+      members.push({ userId: '', name: email, email });
+      seen.add(email);
     }
   }
 

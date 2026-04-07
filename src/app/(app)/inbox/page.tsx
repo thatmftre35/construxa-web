@@ -374,22 +374,35 @@ function NewMessageModal({
             Project members
           </label>
           <div className="flex flex-wrap gap-2 mt-1">
-            {members.map((m) => (
-              <button
-                key={m.userId}
-                onClick={() => {
-                  setRecipientUserId(m.userId);
-                  setRecipientEmail('');
-                }}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
-                  recipientUserId === m.userId
-                    ? 'bg-steel-blue text-white border-steel-blue'
-                    : 'border-frost-white text-dark-navy hover:bg-frost-white'
-                }`}
-              >
-                {m.name}
-              </button>
-            ))}
+            {members.map((m, idx) => {
+              const isSelected = m.userId
+                ? recipientUserId === m.userId
+                : recipientEmail === m.email;
+              return (
+                <button
+                  key={m.userId || m.email || idx}
+                  onClick={() => {
+                    if (m.userId) {
+                      setRecipientUserId(m.userId);
+                      setRecipientEmail('');
+                    } else if (m.email) {
+                      setRecipientUserId('');
+                      setRecipientEmail(m.email);
+                    }
+                  }}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
+                    isSelected
+                      ? 'bg-steel-blue text-white border-steel-blue'
+                      : 'border-frost-white text-dark-navy hover:bg-frost-white'
+                  }`}
+                >
+                  {m.name}
+                  {!m.userId && m.email && (
+                    <span className="ml-1 opacity-60">(invited)</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
