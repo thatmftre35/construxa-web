@@ -61,7 +61,12 @@ export async function fetchMessages(): Promise<InboxMessage[]> {
     .select('*')
     .order('created_at', { ascending: false });
 
-  if (error || !data) return [];
+  if (error) {
+    console.warn('fetchMessages error:', JSON.stringify(error));
+    return [];
+  }
+  console.log('fetchMessages: auth uid =', user.id, 'rows =', data?.length ?? 0);
+  if (!data) return [];
 
   const results: InboxMessage[] = await Promise.all(
     data.map(async (row: Record<string, unknown>) => ({
