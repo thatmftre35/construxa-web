@@ -116,7 +116,10 @@ export async function sendMessage(params: {
   });
   if (error) {
     console.warn('sendMessage error:', error);
-    return { error: error.message || 'Failed to send message' };
+    const detail = [error.message, error.details, error.hint, error.code]
+      .filter(Boolean)
+      .join(' | ');
+    return { error: detail || 'Failed to send message' };
   }
   return {};
 }
