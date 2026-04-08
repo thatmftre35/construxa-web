@@ -172,11 +172,11 @@ create policy "Inviter can delete invitations"
 
 create policy "Invitee can view own invitations"
   on public.project_invitations for select
-  using (email = (select email from auth.users where id = auth.uid()));
+  using (email = (auth.jwt() ->> 'email'));
 
 create policy "Invitee can update own invitations"
   on public.project_invitations for update
-  using (email = (select email from auth.users where id = auth.uid()));
+  using (email = (auth.jwt() ->> 'email'));
 
 -- ============================================================
 -- RLS: Shared users can view projects
@@ -345,7 +345,7 @@ create policy "Users can view messages they sent or received"
   using (
     auth.uid() = sender_id
     or auth.uid() = recipient_id
-    or recipient_email = (select email from auth.users where id = auth.uid())
+    or recipient_email = (auth.jwt() ->> 'email')
   );
 
 create policy "Users can send messages"
@@ -356,7 +356,7 @@ create policy "Recipients can mark messages read"
   on public.messages for update
   using (
     auth.uid() = recipient_id
-    or recipient_email = (select email from auth.users where id = auth.uid())
+    or recipient_email = (auth.jwt() ->> 'email')
   );
 
 create policy "Sender or recipient can delete messages"
