@@ -363,6 +363,20 @@ create policy "Sender or recipient can delete messages"
   on public.messages for delete
   using (auth.uid() = sender_id or auth.uid() = recipient_id);
 
+-- Project members can view all messages tagged to their project (group chat)
+drop policy if exists "Project members can view project messages" on public.messages;
+create policy "Project members can view project messages"
+  on public.messages for select
+  using (
+    project_id is not null and (
+      exists (select 1 from public.projects p where p.id = messages.project_id and p.user_id = auth.uid())
+      or exists (
+        select 1 from public.project_shares ps
+        where ps.project_id = messages.project_id and ps.shared_with_id = auth.uid()
+      )
+    )
+  );
+
 -- ============================================================
 -- Announcements table
 -- ============================================================
