@@ -405,6 +405,16 @@ create policy "Authors can delete announcements"
   using (auth.uid() = author_id);
 
 -- ============================================================
+-- Function: Look up emails for a set of user IDs (for messaging UI)
+-- ============================================================
+create or replace function public.get_user_emails_by_ids(ids uuid[])
+returns table(id uuid, email text)
+language sql security definer set search_path = public, auth as $$
+  select u.id, u.email::text from auth.users u where u.id = any(ids);
+$$;
+grant execute on function public.get_user_emails_by_ids(uuid[]) to authenticated;
+
+-- ============================================================
 -- Allow viewing profiles of project collaborators (so messaging
 -- can list members of shared projects by name)
 -- ============================================================

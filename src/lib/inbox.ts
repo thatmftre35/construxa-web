@@ -184,18 +184,9 @@ export async function getProjectMembers(projectId: string): Promise<ProjectMembe
     .eq('id', projectId)
     .single();
 
+  const ids: string[] = [];
   if (project?.user_id && project.user_id !== myId) {
-    const { data: ownerProfile } = await supabase
-      .from('profiles')
-      .select('id, full_name')
-      .eq('id', project.user_id)
-      .maybeSingle();
-    members.push({
-      userId: project.user_id as string,
-      name: (ownerProfile?.full_name as string) || 'Project owner',
-      email: null,
-    });
-    seen.add(project.user_id as string);
+    ids.push(project.user_id as string);
   }
 
   const { data: shares } = await supabase
@@ -206,19 +197,38 @@ export async function getProjectMembers(projectId: string): Promise<ProjectMembe
   if (shares) {
     for (const s of shares) {
       const sid = (s as Record<string, unknown>).shared_with_id as string;
-      if (!sid || sid === myId || seen.has(sid)) continue;
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .eq('id', sid)
-        .maybeSingle();
-      members.push({
-        userId: sid,
-        name: (profile?.full_name as string) || 'Collaborator',
-        email: null,
-      });
-      seen.add(sid);
+      if (sid && sid !== myId && !ids.includes(sid)) ids.push(sid);
     }
+  }
+
+  const nameMap = new Map<string, string>();
+  if (ids.length > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', ids);
+    if (profiles) {
+      for (const p of profiles as Array<Record<string, unknown>>) {
+        const fn = (p.full_name as string) || '';
+        if (fn) nameMap.set(p.id as string, fn);
+      }
+    }
+  }
+
+  const emailMap = new Map<string, string>();
+  if (ids.length > 0) {
+    const { data: emails } = await supabase.rpc('get_user_emails_by_ids', { ids });
+    if (emails) {
+      for (const e of emails as Array<Record<string, unknown>>) {
+        emailMap.set(e.id as string, (e.email as string) || '');
+      }
+    }
+  }
+
+  for (const id of ids) {
+    const name = nameMap.get(id) || emailMap.get(id) || 'Collaborator';
+    members.push({ userId: id, name, email: emailMap.get(id) || null });
+    seen.add(id);
   }
 
   // Pending invitations (people invited by email but haven't signed up yet)
