@@ -56,9 +56,9 @@ export default function Sidebar({ isOpen, onClose, unreadCount = 0 }: SidebarPro
       <aside
         className={`
           fixed top-0 left-0 z-50 h-full w-[280px]
-          border-r backdrop-blur-2xl
-          bg-[rgba(223,235,246,0.88)] border-[rgba(223,235,246,0.9)] shadow-[4px_0_24px_rgba(41,53,60,0.06)]
-          dark:bg-[rgba(26,34,41,0.92)] dark:border-[rgba(118,138,150,0.2)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.3)]
+          border-r
+          bg-frost-white border-frost-white shadow-[4px_0_24px_rgba(41,53,60,0.06)]
+          dark:bg-[#1a2229] dark:border-[rgba(118,138,150,0.2)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.3)]
           flex flex-col transition-transform duration-300 ease-in-out
           lg:translate-x-0
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}

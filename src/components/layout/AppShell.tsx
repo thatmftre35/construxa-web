@@ -27,7 +27,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Mobile header */}
-      <div className="sticky top-0 z-30 flex items-center justify-between h-14 px-4 border-b lg:hidden backdrop-blur-2xl bg-[rgba(223,235,246,0.85)] border-[rgba(223,235,246,0.9)] dark:bg-[rgba(26,34,41,0.92)] dark:border-[rgba(118,138,150,0.2)]">
+      <div className="sticky top-0 z-30 flex items-center justify-between h-14 px-4 border-b lg:hidden bg-frost-white border-frost-white dark:bg-[#1a2229] dark:border-[rgba(118,138,150,0.2)]">
         <div className="flex items-center">
           <button
             onClick={() => setSidebarOpen(true)}
