@@ -136,7 +136,7 @@ export default function ProjectDetailPage() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showCreateEvent, setShowCreateEvent] = useState(false);
   const [showCreateTask, setShowCreateTask] = useState(false);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Project>>({});
@@ -174,15 +174,20 @@ export default function ProjectDetailPage() {
 
   const fullAddress = `${project.address}, ${project.city}, ${project.state}`;
 
-  const doUploadFile = async (file: File, folder: string) => {
+  const doUploadFiles = async (files: File[], folder: string) => {
     setUploading(true);
     setUploadSuccess(null);
     try {
-      const doc = await uploadDocument(projectId, file, folder);
-      if (doc) {
-        setUploadSuccess(`"${doc.name}" uploaded successfully`);
-        setTimeout(() => setUploadSuccess(null), 3000);
+      const results = await Promise.all(
+        files.map((file) => uploadDocument(projectId, file, folder).catch(() => null))
+      );
+      const uploaded = results.filter(Boolean);
+      if (uploaded.length === 1) {
+        setUploadSuccess(`"${uploaded[0]!.name}" uploaded successfully`);
+      } else if (uploaded.length > 1) {
+        setUploadSuccess(`${uploaded.length} files uploaded successfully`);
       }
+      setTimeout(() => setUploadSuccess(null), 3000);
     } catch {
       console.warn('Upload failed');
     } finally {
@@ -192,22 +197,23 @@ export default function ProjectDetailPage() {
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const fileList = Array.from(files);
 
     if (selectedFolder) {
-      await doUploadFile(file, selectedFolder);
+      await doUploadFiles(fileList, selectedFolder);
     } else {
-      setPendingFile(file);
+      setPendingFiles(fileList);
       setShowFolderPicker(true);
     }
   };
 
   const handleFolderPickForUpload = async (folder: string) => {
     setShowFolderPicker(false);
-    if (pendingFile) {
-      await doUploadFile(pendingFile, folder);
-      setPendingFile(null);
+    if (pendingFiles.length > 0) {
+      await doUploadFiles(pendingFiles, folder);
+      setPendingFiles([]);
     }
   };
 
@@ -358,7 +364,7 @@ export default function ProjectDetailPage() {
             </div>
             <button
               className="mt-4 w-full text-center text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-              onClick={() => { setShowFolderPicker(false); setPendingFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+              onClick={() => { setShowFolderPicker(false); setPendingFiles([]); if (fileInputRef.current) fileInputRef.current.value = ''; }}
             >
               Cancel
             </button>
@@ -970,7 +976,7 @@ function DocumentsTab({
             Photo
           </button>
         </div>
-        <input ref={fileInputRef} type="file" className="hidden" onChange={onFileUpload} accept="*/*" />
+        <input ref={fileInputRef} type="file" className="hidden" onChange={onFileUpload} accept="*/*" multiple />
         {uploadSuccess && (
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-approved font-medium mt-3">
             {uploadSuccess}
