@@ -109,6 +109,7 @@ export default function ProjectDetailPage() {
   const projectId = params.id as string;
 
   const projects = useProjectStore((s) => s.projects);
+  const isLoaded = useProjectStore((s) => s.isLoaded);
   const documents = useProjectStore((s) => s.documents);
   const uploadDocument = useProjectStore((s) => s.uploadDocument);
   const fetchDocuments = useProjectStore((s) => s.fetchDocuments);
@@ -141,6 +142,17 @@ export default function ProjectDetailPage() {
   const [editForm, setEditForm] = useState<Partial<Project>>({});
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-3 border-ice-blue border-t-steel-blue rounded-full animate-spin" />
+          <p className="text-sm text-slate-blue-gray">Loading project...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!project) {
     return (
@@ -680,6 +692,8 @@ function DocumentsTab({
   const [contextDoc, setContextDoc] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
+  const [draggingIds, setDraggingIds] = useState<string[]>([]);
 
   // Build folder list from defaults + custom + any folders found in documents
   const docFolders = new Set(documents.map((d) => d.folder).filter(Boolean));
@@ -777,6 +791,29 @@ function DocumentsTab({
     setCustomFolders([...customFolders, fullPath]);
     setNewFolderName('');
     setShowNewFolder(false);
+  };
+
+  const handleDragStart = (docId: string) => {
+    // If the dragged item is in the selection, drag all selected; otherwise just this one
+    if (selectedIds.has(docId) && selectedIds.size > 1) {
+      setDraggingIds([...selectedIds]);
+    } else {
+      setDraggingIds([docId]);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggingIds([]);
+    setDragOverFolder(null);
+  };
+
+  const handleDropOnFolder = async (targetFolder: string) => {
+    if (draggingIds.length > 0) {
+      await onMoveDocuments(draggingIds, targetFolder);
+      setSelectedIds(new Set());
+    }
+    setDraggingIds([]);
+    setDragOverFolder(null);
   };
 
   const isSelecting = selectedIds.size > 0;
@@ -972,7 +1009,12 @@ function DocumentsTab({
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {DEFAULT_FOLDERS.map((folder) => (
               <button key={folder.name} onClick={() => setSelectedFolder(folder.name)}
-                className="card-subtle flex flex-col items-center gap-2 py-5 hover:shadow-md transition-shadow text-center">
+                onDragOver={(e) => { e.preventDefault(); setDragOverFolder(folder.name); }}
+                onDragLeave={() => setDragOverFolder(null)}
+                onDrop={(e) => { e.preventDefault(); handleDropOnFolder(folder.name); }}
+                className={`card-subtle flex flex-col items-center gap-2 py-5 hover:shadow-md transition-all text-center ${
+                  dragOverFolder === folder.name ? 'ring-2 ring-steel-blue scale-[1.03]' : ''
+                }`}>
                 <div className="text-steel-blue">{folder.icon}</div>
                 <p className="text-sm font-medium text-dark-navy">{folder.name}</p>
                 <p className="text-xs text-slate-blue-gray">{countDocsInFolder(folder.name)} files</p>
@@ -982,7 +1024,12 @@ function DocumentsTab({
               .filter((f) => !f.includes('/'))
               .map((f) => (
                 <button key={f} onClick={() => setSelectedFolder(f)}
-                  className="card-subtle flex flex-col items-center gap-2 py-5 hover:shadow-md transition-shadow text-center">
+                  onDragOver={(e) => { e.preventDefault(); setDragOverFolder(f); }}
+                  onDragLeave={() => setDragOverFolder(null)}
+                  onDrop={(e) => { e.preventDefault(); handleDropOnFolder(f); }}
+                  className={`card-subtle flex flex-col items-center gap-2 py-5 hover:shadow-md transition-all text-center ${
+                    dragOverFolder === f ? 'ring-2 ring-steel-blue scale-[1.03]' : ''
+                  }`}>
                   <FolderOpen className="w-6 h-6 text-steel-blue" />
                   <p className="text-sm font-medium text-dark-navy">{f}</p>
                   <p className="text-xs text-slate-blue-gray">{countDocsInFolder(f)} files</p>
@@ -1020,7 +1067,12 @@ function DocumentsTab({
               const fullPath = `${selectedFolder}/${sub}`;
               return (
                 <button key={sub} onClick={() => setSelectedFolder(fullPath)}
-                  className="card-subtle flex flex-col items-center gap-2 py-4 hover:shadow-md transition-shadow text-center">
+                  onDragOver={(e) => { e.preventDefault(); setDragOverFolder(fullPath); }}
+                  onDragLeave={() => setDragOverFolder(null)}
+                  onDrop={(e) => { e.preventDefault(); handleDropOnFolder(fullPath); }}
+                  className={`card-subtle flex flex-col items-center gap-2 py-4 hover:shadow-md transition-all text-center ${
+                    dragOverFolder === fullPath ? 'ring-2 ring-steel-blue scale-[1.03]' : ''
+                  }`}>
                   <FolderOpen className="w-6 h-6 text-steel-blue" />
                   <p className="text-sm font-medium text-dark-navy">{sub}</p>
                   <p className="text-xs text-slate-blue-gray">{countDocsInFolder(fullPath)} files</p>
@@ -1084,9 +1136,13 @@ function DocumentsTab({
                 const isSelected = selectedIds.has(doc.id);
                 const isRenaming = renamingId === doc.id;
                 return (
-                  <div key={doc.id} className={`flex items-center gap-3 px-5 py-3 transition-colors ${
+                  <div key={doc.id}
+                    draggable
+                    onDragStart={() => handleDragStart(doc.id)}
+                    onDragEnd={handleDragEnd}
+                    className={`flex items-center gap-3 px-5 py-3 transition-colors cursor-grab active:cursor-grabbing ${
                     isSelected ? 'bg-steel-blue/5 dark:bg-steel-blue/10' : 'hover:bg-frost-white dark:hover:bg-white/3'
-                  }`}>
+                  } ${draggingIds.includes(doc.id) ? 'opacity-50' : ''}`}>
                     {/* Selection Checkbox */}
                     <button onClick={() => toggleSelect(doc.id)} className="shrink-0">
                       {isSelected ? (
