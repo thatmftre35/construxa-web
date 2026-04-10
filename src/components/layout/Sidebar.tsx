@@ -57,8 +57,8 @@ export default function Sidebar({ isOpen, onClose, unreadCount = 0 }: SidebarPro
         className={`
           fixed top-0 left-0 z-50 h-full w-[280px]
           border-r backdrop-blur-2xl
-          bg-white/85 border-white/90 shadow-[4px_0_24px_rgba(41,53,60,0.06)]
-          dark:bg-white/4 dark:border-white/6 dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)]
+          bg-[rgba(223,235,246,0.88)] border-[rgba(223,235,246,0.9)] shadow-[4px_0_24px_rgba(41,53,60,0.06)]
+          dark:bg-[rgba(26,34,41,0.92)] dark:border-[rgba(118,138,150,0.2)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.3)]
           flex flex-col transition-transform duration-300 ease-in-out
           lg:translate-x-0
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -94,8 +94,8 @@ export default function Sidebar({ isOpen, onClose, unreadCount = 0 }: SidebarPro
                 className={`
                   flex items-center gap-3 py-3 px-4 rounded-xl transition-colors duration-200
                   ${isActive
-                    ? 'bg-white/50 text-dark-navy font-semibold dark:bg-white/8 dark:text-ice-blue'
-                    : 'text-steel-blue hover:bg-white/30 hover:text-dark-navy dark:text-ice-blue/70 dark:hover:bg-white/5'
+                    ? 'bg-white/40 text-dark-navy font-semibold dark:bg-white/10 dark:text-ice-blue'
+                    : 'text-steel-blue hover:bg-white/25 hover:text-dark-navy dark:text-ice-blue/70 dark:hover:bg-white/6'
                   }
                 `}
               >
