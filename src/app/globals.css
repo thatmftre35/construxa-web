@@ -328,3 +328,35 @@
 .dark .divide-light-gray > :not(:last-child) {
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
+
+/* ─────────────────────────────────────────────────────── */
+/*  Sidebar / mobile header — cross-browser glass          */
+/* ─────────────────────────────────────────────────────── */
+
+.sidebar-glass {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  border-color: rgba(255, 255, 255, 0.85);
+  box-shadow: 4px 0 24px rgba(41, 53, 60, 0.06),
+              inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+
+.dark .sidebar-glass {
+  background: rgba(26, 34, 41, 0.95);
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  border-color: rgba(118, 138, 150, 0.2);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3),
+              inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Mobile slide-out: fully opaque so content doesn't bleed through */
+@media (max-width: 1023px) {
+  .sidebar-glass {
+    background: #f0f5fb;
+  }
+  .dark .sidebar-glass {
+    background: #1a2229;
+  }
+}
