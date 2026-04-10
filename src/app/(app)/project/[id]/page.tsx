@@ -128,6 +128,8 @@ export default function ProjectDetailPage() {
   const project = storeProject;
 
   const updateProject = useProjectStore((s) => s.updateProject);
+  const allTasks = useTaskStore((s) => s.tasks);
+  const allEvents = useEventStore((s) => s.events);
 
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
@@ -167,8 +169,6 @@ export default function ProjectDetailPage() {
     );
   }
 
-  const allTasks = useTaskStore((s) => s.tasks);
-  const allEvents = useEventStore((s) => s.events);
   const projectTasks = allTasks.filter((t) => t.projectId === projectId);
   const projectEvents = allEvents.filter((e) => e.projectId === projectId);
 
@@ -700,6 +700,7 @@ function DocumentsTab({
   const [renameValue, setRenameValue] = useState('');
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
   const [draggingIds, setDraggingIds] = useState<string[]>([]);
+  const lastClickedIndex = useRef<number | null>(null);
 
   // Build folder list from defaults + custom + any folders found in documents
   const docFolders = new Set(documents.map((d) => d.folder).filter(Boolean));
@@ -750,13 +751,27 @@ function DocumentsTab({
     ).length;
   };
 
-  const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const toggleSelect = (id: string, e?: React.MouseEvent) => {
+    const currentIndex = folderDocs.findIndex((d) => d.id === id);
+
+    if (e?.shiftKey && lastClickedIndex.current !== null && currentIndex !== -1) {
+      const start = Math.min(lastClickedIndex.current, currentIndex);
+      const end = Math.max(lastClickedIndex.current, currentIndex);
+      const rangeIds = folderDocs.slice(start, end + 1).map((d) => d.id);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        rangeIds.forEach((rid) => next.add(rid));
+        return next;
+      });
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    }
+    lastClickedIndex.current = currentIndex;
   };
 
   const selectAll = () => {
@@ -1150,7 +1165,7 @@ function DocumentsTab({
                     isSelected ? 'bg-steel-blue/5 dark:bg-steel-blue/10' : 'hover:bg-frost-white dark:hover:bg-white/3'
                   } ${draggingIds.includes(doc.id) ? 'opacity-50' : ''}`}>
                     {/* Selection Checkbox */}
-                    <button onClick={() => toggleSelect(doc.id)} className="shrink-0">
+                    <button onClick={(e) => toggleSelect(doc.id, e)} className="shrink-0">
                       {isSelected ? (
                         <CheckCircle2 className="w-5 h-5 text-steel-blue" />
                       ) : (
