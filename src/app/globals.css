@@ -329,6 +329,14 @@
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
+/* Context menu — explicit backgrounds that survive all overrides */
+.context-menu {
+  background-color: #ffffff !important;
+}
+.dark .context-menu {
+  background-color: #29353C !important;
+}
+
 /* ─────────────────────────────────────────────────────── */
 /*  Sidebar / mobile header — cross-browser glass          */
 /* ─────────────────────────────────────────────────────── */

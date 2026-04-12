@@ -1219,7 +1219,7 @@ function DocumentsTab({
                         <MoreVertical className="w-4 h-4" />
                       </button>
                       {contextDoc === doc.id && (
-                        <div className="absolute right-0 top-full mt-1 z-20 w-40 py-1 rounded-xl shadow-lg border border-light-gray dark:border-white/10 bg-[#ffffff] dark:bg-[#29353C]">
+                        <div className="context-menu absolute right-0 top-full mt-1 z-20 w-40 py-1 rounded-xl shadow-lg border border-light-gray dark:border-white/10">
                           <button onClick={() => { setPreviewDoc(doc); setContextDoc(null); }}
                             className="w-full px-3 py-2 text-left text-sm text-dark-navy hover:bg-frost-white dark:hover:bg-white/5 transition-colors">
                             Preview
