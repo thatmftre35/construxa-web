@@ -336,6 +336,12 @@
 .dark .context-menu {
   background-color: #29353C !important;
 }
+.context-menu-item:hover {
+  background-color: #DFEBF6 !important;
+}
+.dark .context-menu-item:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
 
 /* ─────────────────────────────────────────────────────── */
 /*  Sidebar / mobile header — cross-browser glass          */
