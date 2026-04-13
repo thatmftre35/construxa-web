@@ -14,6 +14,19 @@ export interface ProjectDocument {
   uploadedAt: string;
   storagePath?: string;
   folder: string;
+  isRevisionGroup: boolean;
+}
+
+export interface DocumentRevision {
+  id: string;
+  documentId: string;
+  revisionNumber: number;
+  name: string;
+  type: string;
+  size: number;
+  storagePath: string | null;
+  url: string;
+  createdAt: string;
 }
 
 // Maps Supabase row to our Project type
@@ -61,6 +74,7 @@ function rowToDocument(row: Record<string, unknown>): ProjectDocument {
     uploadedAt: row.created_at as string,
     storagePath: row.storage_path as string,
     folder: (row.folder as string) || '',
+    isRevisionGroup: !!(row.is_revision_group),
   };
 }
 
@@ -78,6 +92,9 @@ interface ProjectState {
   deleteDocuments: (ids: string[]) => Promise<void>;
   moveDocuments: (ids: string[], folder: string) => Promise<void>;
   renameDocument: (id: string, name: string) => Promise<void>;
+  convertToRevisionGroup: (documentId: string) => Promise<void>;
+  fetchRevisions: (documentId: string) => Promise<DocumentRevision[]>;
+  uploadRevision: (documentId: string, file: File) => Promise<DocumentRevision | null>;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -318,6 +335,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         uploadedAt: new Date().toISOString(),
         storagePath: storagePath || undefined,
         folder,
+        isRevisionGroup: false,
       };
 
       set((state) => ({ documents: [...state.documents, newDoc] }));
@@ -334,6 +352,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         size: file.size,
         uploadedAt: new Date().toISOString(),
         folder,
+        isRevisionGroup: false,
       };
       set((state) => ({ documents: [...state.documents, newDoc] }));
       return newDoc;
@@ -404,6 +423,167 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       }));
     } catch (err) {
       console.warn('Error renaming document:', err);
+    }
+  },
+
+  convertToRevisionGroup: async (documentId) => {
+    try {
+      const supabase = getSupabaseClient();
+      const doc = get().documents.find((d) => d.id === documentId);
+      if (!doc) return;
+
+      // Strip file extension for the group name
+      const groupName = doc.name.replace(/\.[^/.]+$/, '');
+
+      // Update document to be a revision group
+      const { error: updateError } = await supabase
+        .from('documents')
+        .update({ is_revision_group: true, name: groupName })
+        .eq('id', documentId);
+
+      if (updateError) {
+        console.warn('Failed to convert to revision group:', updateError.message);
+        return;
+      }
+
+      // Create first revision from original file
+      const { error: revError } = await supabase
+        .from('document_revisions')
+        .insert({
+          document_id: documentId,
+          revision_number: 1,
+          name: doc.name,
+          type: doc.type,
+          size: doc.size,
+          storage_path: doc.storagePath || null,
+        });
+
+      if (revError) console.warn('Failed to create initial revision:', revError.message);
+
+      set((state) => ({
+        documents: state.documents.map((d) =>
+          d.id === documentId ? { ...d, name: groupName, isRevisionGroup: true } : d
+        ),
+      }));
+    } catch (err) {
+      console.warn('Error converting to revision group:', err);
+    }
+  },
+
+  fetchRevisions: async (documentId) => {
+    try {
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from('document_revisions')
+        .select('*')
+        .eq('document_id', documentId)
+        .order('revision_number', { ascending: true });
+
+      if (error) {
+        console.warn('Failed to fetch revisions:', error.message);
+        return [];
+      }
+
+      const revisions: DocumentRevision[] = await Promise.all(
+        ((data || []) as Record<string, unknown>[]).map(async (r) => {
+          let url = '';
+          const storagePath = r.storage_path as string | null;
+          if (storagePath) {
+            const { data: urlData } = await supabase.storage
+              .from('documents')
+              .createSignedUrl(storagePath, 3600);
+            if (urlData?.signedUrl) url = urlData.signedUrl;
+          }
+          return {
+            id: r.id as string,
+            documentId: r.document_id as string,
+            revisionNumber: r.revision_number as number,
+            name: r.name as string,
+            type: r.type as string,
+            size: (r.size as number) || 0,
+            storagePath,
+            url,
+            createdAt: r.created_at as string,
+          };
+        })
+      );
+
+      return revisions;
+    } catch (err) {
+      console.warn('Error fetching revisions:', err);
+      return [];
+    }
+  },
+
+  uploadRevision: async (documentId, file) => {
+    try {
+      const supabase = getSupabaseClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      // Get next revision number
+      const { data: existing } = await supabase
+        .from('document_revisions')
+        .select('revision_number')
+        .eq('document_id', documentId)
+        .order('revision_number', { ascending: false })
+        .limit(1);
+
+      const nextNum = ((existing?.[0] as Record<string, unknown>)?.revision_number as number || 0) + 1;
+
+      // Upload file to storage
+      const doc = get().documents.find((d) => d.id === documentId);
+      const projectId = doc?.projectId || 'unknown';
+      const ext = file.name.split('.').pop() || 'file';
+      const path = `projects/${projectId}/${Date.now()}_rev${nextNum}.${ext}`;
+
+      const { data: storageData } = await supabase.storage
+        .from('documents')
+        .upload(path, file, { contentType: file.type });
+
+      const storagePath = storageData?.path || null;
+
+      // Insert revision row
+      const { data: revRow, error: dbError } = await supabase
+        .from('document_revisions')
+        .insert({
+          document_id: documentId,
+          revision_number: nextNum,
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          storage_path: storagePath,
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        console.warn('Failed to save revision:', dbError.message);
+        return null;
+      }
+
+      let url = '';
+      if (storagePath) {
+        const { data: urlData } = await supabase.storage
+          .from('documents')
+          .createSignedUrl(storagePath, 3600);
+        if (urlData?.signedUrl) url = urlData.signedUrl;
+      }
+
+      return {
+        id: (revRow as Record<string, unknown>).id as string,
+        documentId,
+        revisionNumber: nextNum,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        storagePath,
+        url,
+        createdAt: new Date().toISOString(),
+      };
+    } catch (err) {
+      console.warn('Error uploading revision:', err);
+      return null;
     }
   },
 }));

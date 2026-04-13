@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Card from '@/components/ui/Card';
 import { useProjectStore } from '@/stores/projectStore';
+import { useApprovalStore, type ApprovalRecord } from '@/stores/approvalStore';
 import { getSupabaseClient } from '@/lib/supabase';
 import {
   fetchDirectConversations,
@@ -293,7 +294,7 @@ export default function InboxPage() {
       )}
 
       {!loading && activeTab === 'approvals' && (
-        <div className="text-center text-slate-blue-gray py-12 text-sm">No approvals yet</div>
+        <ApprovalsTab />
       )}
 
       {showNewMessage && (
@@ -726,5 +727,111 @@ function NewAnnouncementModal({
         </button>
       </div>
     </ModalShell>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Approvals Tab                                                      */
+/* ------------------------------------------------------------------ */
+
+function ApprovalsTab() {
+  const approvals = useApprovalStore((s) => s.approvals);
+  const isLoaded = useApprovalStore((s) => s.isLoaded);
+  const fetchApprovals = useApprovalStore((s) => s.fetchApprovals);
+  const respondToApproval = useApprovalStore((s) => s.respondToApproval);
+  const [myId, setMyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchApprovals();
+    getSupabaseClient().auth.getUser().then(({ data }: { data: { user: { id: string } | null } }) => setMyId(data.user?.id || null));
+  }, [fetchApprovals]);
+
+  if (!isLoaded) {
+    return <div className="text-center py-12 text-sm text-slate-blue-gray">Loading approvals...</div>;
+  }
+
+  const received = approvals.filter((a) => a.approverId === myId);
+  const sent = approvals.filter((a) => a.requesterId === myId);
+
+  if (received.length === 0 && sent.length === 0) {
+    return <div className="text-center text-slate-blue-gray py-12 text-sm">No approvals yet</div>;
+  }
+
+  const formatDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  const statusBadge = (status: string) => {
+    if (status === 'approved') return <span className="text-[10px] font-semibold text-approved bg-approved/10 px-2 py-0.5 rounded-full">Approved</span>;
+    if (status === 'rejected') return <span className="text-[10px] font-semibold text-rejected bg-rejected/10 px-2 py-0.5 rounded-full">Denied</span>;
+    return <span className="text-[10px] font-semibold text-pending bg-pending/10 px-2 py-0.5 rounded-full">Pending</span>;
+  };
+
+  return (
+    <div className="space-y-6">
+      {received.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-dark-navy mb-3">Received</h3>
+          <div className="space-y-2">
+            {received.map((a) => (
+              <Card key={a.id}>
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-frost-white dark:bg-white/5 flex items-center justify-center shrink-0">
+                    <FileIcon className="w-4 h-4 text-steel-blue" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-dark-navy truncate">{a.documentName}</p>
+                    <p className="text-xs text-slate-blue-gray">From {a.requesterName} &middot; {a.projectName} &middot; {formatDate(a.createdAt)}</p>
+                  </div>
+                  {a.status === 'pending' ? (
+                    <div className="flex gap-2 shrink-0">
+                      <button onClick={() => respondToApproval(a.id, 'approved')}
+                        className="px-3 py-1.5 rounded-lg bg-approved text-white text-xs font-medium hover:bg-approved/90 transition-colors">
+                        Approve
+                      </button>
+                      <button onClick={() => respondToApproval(a.id, 'rejected')}
+                        className="px-3 py-1.5 rounded-lg bg-rejected text-white text-xs font-medium hover:bg-rejected/90 transition-colors">
+                        Deny
+                      </button>
+                    </div>
+                  ) : (
+                    statusBadge(a.status)
+                  )}
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {sent.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-dark-navy mb-3">Sent</h3>
+          <div className="space-y-2">
+            {sent.map((a) => (
+              <Card key={a.id}>
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-frost-white dark:bg-white/5 flex items-center justify-center shrink-0">
+                    <FileIcon className="w-4 h-4 text-steel-blue" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-dark-navy truncate">{a.documentName}</p>
+                    <p className="text-xs text-slate-blue-gray">To {a.approverName} &middot; {a.projectName} &middot; {formatDate(a.createdAt)}</p>
+                  </div>
+                  {statusBadge(a.status)}
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FileIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+      <polyline points="14 2 14 8 20 8"/>
+    </svg>
   );
 }

@@ -41,10 +41,13 @@ import {
   MoreVertical,
   CheckCircle2,
   Circle,
+  AlertCircle,
+  GitBranch,
 } from 'lucide-react';
 import type { ProjectDocument } from '@/stores/projectStore';
 import type { Project } from '@/types/project';
 import { useProjectStore } from '@/stores/projectStore';
+import { useApprovalStore } from '@/stores/approvalStore';
 import { useTaskStore } from '@/stores/taskStore';
 import { useEventStore } from '@/stores/eventStore';
 import { formatEventDate } from '@/lib/dateUtils';
@@ -53,6 +56,8 @@ import Card from '@/components/ui/Card';
 import ShareModal from '@/components/project/ShareModal';
 import CreateEventModal from '@/components/modals/CreateEventModal';
 import CreateTaskModal from '@/components/modals/CreateTaskModal';
+import ApprovalModal from '@/components/modals/ApprovalModal';
+import RevisionListModal from '@/components/modals/RevisionListModal';
 
 const EVENT_TYPE_ICONS: Record<string, typeof Search> = {
   inspection: Search,
@@ -411,6 +416,7 @@ export default function ProjectDetailPage() {
             onDeleteDocuments={deleteDocuments}
             onMoveDocuments={moveDocuments}
             onRenameDocument={renameDocument}
+            projectId={projectId}
           />
         )}
       </div>
@@ -676,6 +682,7 @@ function DocumentsTab({
   onDeleteDocuments,
   onMoveDocuments,
   onRenameDocument,
+  projectId,
 }: {
   documents: ProjectDocument[];
   selectedFolder: string | null;
@@ -687,6 +694,7 @@ function DocumentsTab({
   onDeleteDocuments: (ids: string[]) => Promise<void>;
   onMoveDocuments: (ids: string[], folder: string) => Promise<void>;
   onRenameDocument: (id: string, name: string) => Promise<void>;
+  projectId: string;
 }) {
   const [previewDoc, setPreviewDoc] = useState<ProjectDocument | null>(null);
   const [customFolders, setCustomFolders] = useState<string[]>([]);
@@ -701,6 +709,15 @@ function DocumentsTab({
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
   const [draggingIds, setDraggingIds] = useState<string[]>([]);
   const lastClickedIndex = useRef<number | null>(null);
+  const [approvalDoc, setApprovalDoc] = useState<ProjectDocument | null>(null);
+  const [revisionDoc, setRevisionDoc] = useState<ProjectDocument | null>(null);
+
+  const getDocumentApprovalStatus = useApprovalStore((s) => s.getDocumentApprovalStatus);
+  const fetchApprovals = useApprovalStore((s) => s.fetchApprovals);
+
+  useEffect(() => {
+    fetchApprovals();
+  }, [fetchApprovals]);
 
   // Build folder list from defaults + custom + any folders found in documents
   const docFolders = new Set(documents.map((d) => d.folder).filter(Boolean));
@@ -1174,8 +1191,15 @@ function DocumentsTab({
                     </button>
 
                     {/* Thumbnail */}
-                    <button onClick={() => !isRenaming && setPreviewDoc(doc)} className="shrink-0">
-                      {isImage ? (
+                    <button onClick={() => {
+                      if (isRenaming) return;
+                      if (doc.isRevisionGroup) { setRevisionDoc(doc); } else { setPreviewDoc(doc); }
+                    }} className="shrink-0">
+                      {doc.isRevisionGroup ? (
+                        <div className="w-10 h-10 rounded-lg bg-frost-white dark:bg-white/5 flex items-center justify-center">
+                          <GitBranch className="w-5 h-5 text-steel-blue" />
+                        </div>
+                      ) : isImage ? (
                         <div className="w-10 h-10 rounded-lg bg-frost-white overflow-hidden">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={doc.url} alt={doc.name} className="w-full h-full object-cover" />
@@ -1188,7 +1212,10 @@ function DocumentsTab({
                     </button>
 
                     {/* Info */}
-                    <button onClick={() => !isRenaming && setPreviewDoc(doc)} className="flex-1 min-w-0 text-left">
+                    <button onClick={() => {
+                      if (isRenaming) return;
+                      if (doc.isRevisionGroup) { setRevisionDoc(doc); } else { setPreviewDoc(doc); }
+                    }} className="flex-1 min-w-0 text-left">
                       {isRenaming ? (
                         <input autoFocus value={renameValue}
                           onChange={(e) => setRenameValue(e.target.value)}
@@ -1197,9 +1224,19 @@ function DocumentsTab({
                           className="input-field text-sm w-full" />
                       ) : (
                         <>
-                          <p className="text-sm font-medium text-dark-navy truncate">{doc.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-medium text-dark-navy truncate">{doc.name}</p>
+                            {(() => {
+                              const status = getDocumentApprovalStatus(doc.id);
+                              if (status === 'pending') return <AlertCircle className="w-3.5 h-3.5 text-rejected shrink-0" />;
+                              if (status === 'approved') return <span className="text-[10px] font-semibold text-approved shrink-0">Approved</span>;
+                              if (status === 'rejected') return <span className="text-[10px] font-semibold text-rejected shrink-0">Denied</span>;
+                              return null;
+                            })()}
+                            {doc.isRevisionGroup && <span className="text-[10px] font-medium text-slate-blue-gray bg-frost-white dark:bg-white/5 px-1.5 py-0.5 rounded shrink-0">Revisions</span>}
+                          </div>
                           <p className="text-xs text-slate-blue-gray mt-0.5">
-                            {doc.type.split('/')[1]?.toUpperCase() || 'FILE'} &middot;{' '}
+                            {doc.isRevisionGroup ? 'Revision Group' : (doc.type.split('/')[1]?.toUpperCase() || 'FILE')} &middot;{' '}
                             {formatDate(doc.uploadedAt)} &middot; {formatFileSize(doc.size)}
                           </p>
                         </>
@@ -1239,6 +1276,10 @@ function DocumentsTab({
                               Download
                             </a>
                           )}
+                          <button onClick={() => { setApprovalDoc(doc); setContextDoc(null); }}
+                            className="context-menu-item w-full px-3 py-2 text-left text-sm text-dark-navy transition-colors">
+                            Approvals
+                          </button>
                           <button onClick={() => { setSelectedIds(new Set([doc.id])); setShowDeleteConfirm(true); setContextDoc(null); }}
                             className="w-full px-3 py-2 text-left text-sm text-rejected hover:bg-frost-white dark:hover:bg-white/5 transition-colors">
                             Delete
@@ -1253,6 +1294,26 @@ function DocumentsTab({
           </Card>
         )}
       </motion.div>
+
+      {/* Approval Modal */}
+      {approvalDoc && (
+        <ApprovalModal
+          open={!!approvalDoc}
+          onClose={() => setApprovalDoc(null)}
+          document={approvalDoc}
+          projectId={projectId}
+        />
+      )}
+
+      {/* Revision List Modal */}
+      {revisionDoc && (
+        <RevisionListModal
+          open={!!revisionDoc}
+          onClose={() => setRevisionDoc(null)}
+          document={revisionDoc}
+          projectId={projectId}
+        />
+      )}
     </>
   );
 }
