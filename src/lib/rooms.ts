@@ -45,16 +45,6 @@ export async function getDrawingImage(doc: { id: string; type: string; url: stri
   return { url: doc.url, width: 0, height: 0, isRendered: false };
 }
 
-export async function detectRoomsFromUrl(imageUrl: string): Promise<Array<{ label: string; bbox: Bbox }>> {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase.functions.invoke('detect-rooms', {
-    body: { imageUrl },
-  });
-  if (error) throw new Error(error.message ?? 'Failed to reach detect-rooms');
-  if ((data as Record<string, unknown>)?.error) throw new Error((data as Record<string, string>).error);
-  return ((data as { rooms?: Array<{ label: string; bbox: Bbox }> })?.rooms ?? []);
-}
-
 function rowToRoom(row: Record<string, unknown>): DrawingRoom {
   return {
     id: row.id as string,
@@ -102,30 +92,6 @@ export async function createRoom(input: {
     .single();
   if (error) throw new Error(error.message);
   return rowToRoom(data);
-}
-
-export async function createRoomsBulk(rooms: Array<{
-  documentId: string;
-  projectId: string;
-  label: string;
-  bbox: Bbox;
-  source: 'ai' | 'manual';
-}>): Promise<DrawingRoom[]> {
-  if (rooms.length === 0) return [];
-  const supabase = getSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
-  const payload = rooms.map((r) => ({
-    document_id: r.documentId,
-    project_id: r.projectId,
-    user_id: user.id,
-    label: r.label,
-    bbox: r.bbox,
-    source: r.source,
-  }));
-  const { data, error } = await supabase.from('drawing_rooms').insert(payload).select();
-  if (error) throw new Error(error.message);
-  return (data || []).map(rowToRoom);
 }
 
 export async function updateRoom(id: string, updates: { label?: string; bbox?: Bbox }): Promise<void> {

@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Plus, Trash2, Camera, Upload, X, Loader2 } from 'lucide-react';
 import { useProjectStore } from '@/stores/projectStore';
 import {
-  listRooms, createRoom, createRoomsBulk, updateRoom, deleteRoom,
-  listRoomPhotos, uploadRoomPhoto, deleteRoomPhoto, detectRoomsFromUrl,
+  listRooms, createRoom, updateRoom, deleteRoom,
+  listRoomPhotos, uploadRoomPhoto, deleteRoomPhoto,
   getDrawingImage,
   type DrawingRoom, type RoomPhoto, type Bbox,
 } from '@/lib/rooms';
@@ -20,10 +20,8 @@ type Mode = 'view' | 'draw';
 export default function DrawingViewerPage() {
   const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const projectId = params.id as string;
   const docId = params.docId as string;
-  const autoScan = searchParams.get('autoScan') === '1';
 
   const { documents, fetchDocuments } = useProjectStore();
   const doc = useMemo(() => documents.find((d) => d.id === docId), [documents, docId]);
@@ -41,10 +39,8 @@ export default function DrawingViewerPage() {
   const [renderingPdf, setRenderingPdf] = useState(false);
   const [rooms, setRooms] = useState<DrawingRoom[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(true);
-  const [scanning, setScanning] = useState(false);
   const [mode, setMode] = useState<Mode>('view');
   const [activeRoom, setActiveRoom] = useState<DrawingRoom | null>(null);
-  const [autoScanPending, setAutoScanPending] = useState(autoScan);
 
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
   const [drawRect, setDrawRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -92,47 +88,10 @@ export default function DrawingViewerPage() {
     if (!docId) return;
     setLoadingRooms(true);
     listRooms(docId)
-      .then((rs) => {
-        setRooms(rs);
-        if (rs.length > 0) setAutoScanPending(false);
-      })
+      .then(setRooms)
       .catch((e) => alert((e as Error).message || 'Failed to load rooms'))
       .finally(() => setLoadingRooms(false));
   }, [docId]);
-
-  useEffect(() => {
-    if (autoScanPending && drawingUrl && !scanning && !renderingPdf && rooms.length === 0 && !loadingRooms) {
-      setAutoScanPending(false);
-      handleScan();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoScanPending, drawingUrl, scanning, renderingPdf, rooms.length, loadingRooms]);
-
-  const handleScan = async () => {
-    if (!drawingUrl || !doc?.projectId) return;
-    setScanning(true);
-    try {
-      const detected = await detectRoomsFromUrl(drawingUrl);
-      if (detected.length === 0) {
-        alert('The AI could not detect any rooms in this drawing. You can still draw them manually.');
-        return;
-      }
-      const inserted = await createRoomsBulk(
-        detected.map((r) => ({
-          documentId: doc.id,
-          projectId: doc.projectId,
-          label: r.label,
-          bbox: r.bbox,
-          source: 'ai' as const,
-        }))
-      );
-      setRooms((prev) => [...prev, ...inserted]);
-    } catch (e) {
-      alert((e as Error).message || 'Could not detect rooms.');
-    } finally {
-      setScanning(false);
-    }
-  };
 
   const screenToNorm = (x: number, y: number) => {
     if (!displayRect) return { x: 0, y: 0 };
@@ -233,14 +192,6 @@ export default function DrawingViewerPage() {
           <p className="text-xs text-slate-blue-gray">{rooms.length} room{rooms.length === 1 ? '' : 's'}</p>
         </div>
         <button
-          onClick={handleScan}
-          disabled={scanning}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-steel-blue text-steel-blue text-sm font-semibold disabled:opacity-60 hover:bg-frost-white dark:hover:bg-white/10"
-        >
-          {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-          {rooms.some((r) => r.source === 'ai') ? 'Re-scan with AI' : 'Scan for rooms'}
-        </button>
-        <button
           onClick={() => setMode((m) => (m === 'draw' ? 'view' : 'draw'))}
           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-semibold ${
             mode === 'draw'
@@ -311,13 +262,6 @@ export default function DrawingViewerPage() {
           />
         )}
 
-        {scanning && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30">
-            <Loader2 className="w-8 h-8 animate-spin text-steel-blue" />
-            <p className="mt-2 text-sm font-semibold">Scanning drawing…</p>
-          </div>
-        )}
-
         {renderingPdf && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30">
             <Loader2 className="w-8 h-8 animate-spin text-steel-blue" />
@@ -325,7 +269,7 @@ export default function DrawingViewerPage() {
           </div>
         )}
 
-        {loadingRooms && !scanning && (
+        {loadingRooms && (
           <div className="absolute top-3 right-3 flex items-center gap-2 px-2 py-1 rounded bg-black/30 text-xs">
             <Loader2 className="w-3 h-3 animate-spin" /> Loading rooms…
           </div>
@@ -336,7 +280,7 @@ export default function DrawingViewerPage() {
         {mode === 'draw'
           ? 'Drag on the drawing to outline a room.'
           : rooms.length === 0
-            ? 'Scan for rooms or add them manually.'
+            ? 'Click “Add room” to outline rooms manually.'
             : 'Click a room to add photos.'}
       </footer>
 

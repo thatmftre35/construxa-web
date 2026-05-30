@@ -1262,22 +1262,13 @@ function DocumentsTab({
                             Preview
                           </button>
                           {(doc.folder === 'Drawings' || doc.folder?.startsWith('Drawings/')) && (doc.type.startsWith('image/') || doc.type === 'application/pdf') && (
-                            <>
-                              <Link
-                                href={`/project/${projectId}/drawing/${doc.id}`}
-                                onClick={() => setContextDoc(null)}
-                                className="context-menu-item block w-full px-3 py-2 text-left text-sm text-dark-navy transition-colors"
-                              >
-                                Open drawing viewer
-                              </Link>
-                              <Link
-                                href={`/project/${projectId}/drawing/${doc.id}?autoScan=1`}
-                                onClick={() => setContextDoc(null)}
-                                className="context-menu-item block w-full px-3 py-2 text-left text-sm text-dark-navy transition-colors"
-                              >
-                                Scan for rooms (AI)
-                              </Link>
-                            </>
+                            <Link
+                              href={`/project/${projectId}/drawing/${doc.id}`}
+                              onClick={() => setContextDoc(null)}
+                              className="context-menu-item block w-full px-3 py-2 text-left text-sm text-dark-navy transition-colors"
+                            >
+                              Open drawing viewer
+                            </Link>
                           )}
                           <button onClick={() => { setRenamingId(doc.id); setRenameValue(doc.name); setContextDoc(null); }}
                             className="context-menu-item w-full px-3 py-2 text-left text-sm text-dark-navy transition-colors">
