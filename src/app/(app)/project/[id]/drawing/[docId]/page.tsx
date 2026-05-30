@@ -12,7 +12,7 @@ import {
   type DrawingRoom, type RoomPhoto, type Bbox,
 } from '@/lib/rooms';
 
-const OVERLAY_BG = '#78B4E6';
+const OVERLAY_BG = 'rgba(120, 180, 230, 0.32)';
 const OVERLAY_BORDER = 'rgba(80, 150, 220, 0.85)';
 
 type Mode = 'view' | 'draw';
@@ -351,7 +351,7 @@ function RoomDrawer({
   return (
     <div className="fixed inset-0 z-40 flex items-end sm:items-center sm:justify-end bg-black/40" onClick={onClose}>
       <div
-        className="w-full sm:max-w-md h-[80vh] sm:h-[90vh] bg-white dark:bg-dark-navy text-dark-navy dark:text-white flex flex-col rounded-t-2xl sm:rounded-2xl sm:m-4 shadow-xl"
+        className="room-sheet w-full sm:max-w-md h-[80vh] sm:h-[90vh] text-dark-navy dark:text-white flex flex-col rounded-t-2xl sm:rounded-2xl sm:m-4 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 px-4 py-3 border-b border-light-gray dark:border-white/10">

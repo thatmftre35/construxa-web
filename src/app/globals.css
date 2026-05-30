@@ -343,6 +343,15 @@
   background-color: rgba(255, 255, 255, 0.08) !important;
 }
 
+/* Room photo drawer — explicit solid background that survives the
+   .dark .bg-white override (which would otherwise make it translucent). */
+.room-sheet {
+  background-color: #ffffff !important;
+}
+.dark .room-sheet {
+  background-color: #29353C !important;
+}
+
 /* ─────────────────────────────────────────────────────── */
 /*  Sidebar / mobile header — cross-browser glass          */
 /* ─────────────────────────────────────────────────────── */
