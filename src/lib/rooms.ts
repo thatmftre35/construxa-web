@@ -16,7 +16,6 @@ export type DrawingRoom = {
 
 export type RoomPhoto = {
   id: string;
-  roomId: string;
   storagePath: string;
   url: string;
   name: string | null;
@@ -26,6 +25,18 @@ export type RoomPhoto = {
 };
 
 export type DrawingImage = { url: string; width: number; height: number; isRendered: boolean };
+
+// Room photos live as regular project documents filed under
+// "Site Photos/{drawing filename}/{room name}", so they show up in the
+// project's Site Photos folder browser. A path segment can't contain "/",
+// so slashes in names are flattened to keep the hierarchy intact.
+function sanitizeSegment(s: string): string {
+  return (s || '').replace(/\//g, '-').trim() || 'Untitled';
+}
+
+export function roomPhotosFolder(drawingName: string, roomLabel: string): string {
+  return `Site Photos/${sanitizeSegment(drawingName)}/${sanitizeSegment(roomLabel)}`;
+}
 
 export async function renderPdfPage(documentId: string, page = 1): Promise<{ url: string; width: number; height: number; page: number }> {
   const supabase = getSupabaseClient();
@@ -112,7 +123,6 @@ export async function deleteRoom(id: string): Promise<void> {
 function rowToPhoto(row: Record<string, unknown>, url: string): RoomPhoto {
   return {
     id: row.id as string,
-    roomId: row.room_id as string,
     storagePath: row.storage_path as string,
     url,
     name: (row.name as string) || null,
@@ -122,20 +132,26 @@ function rowToPhoto(row: Record<string, unknown>, url: string): RoomPhoto {
   };
 }
 
-export async function listRoomPhotos(roomId: string): Promise<RoomPhoto[]> {
+export async function listRoomPhotos(input: {
+  projectId: string;
+  drawingName: string;
+  roomLabel: string;
+}): Promise<RoomPhoto[]> {
   const supabase = getSupabaseClient();
+  const folder = roomPhotosFolder(input.drawingName, input.roomLabel);
   const { data, error } = await supabase
-    .from('drawing_room_photos')
+    .from('documents')
     .select('*')
-    .eq('room_id', roomId)
+    .eq('project_id', input.projectId)
+    .eq('folder', folder)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
-  const rows = data || [];
+  const rows = (data || []).filter((r: Record<string, unknown>) => r.storage_path);
   const withUrls = await Promise.all(
     rows.map(async (row: Record<string, unknown>) => {
       const path = row.storage_path as string;
       const { data: urlData } = await supabase.storage
-        .from('room-photos')
+        .from('documents')
         .createSignedUrl(path, 3600);
       return rowToPhoto(row, urlData?.signedUrl ?? '');
     })
@@ -144,8 +160,9 @@ export async function listRoomPhotos(roomId: string): Promise<RoomPhoto[]> {
 }
 
 export async function uploadRoomPhoto(input: {
-  roomId: string;
   projectId: string;
+  drawingName: string;
+  roomLabel: string;
   file: File;
 }): Promise<RoomPhoto> {
   const supabase = getSupabaseClient();
@@ -154,29 +171,31 @@ export async function uploadRoomPhoto(input: {
 
   const type = input.file.type || 'image/jpeg';
   const ext = (input.file.name.split('.').pop() || type.split('/')[1] || 'jpg').toLowerCase();
-  const path = `projects/${input.projectId}/rooms/${input.roomId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const folder = roomPhotosFolder(input.drawingName, input.roomLabel);
+  const path = `projects/${input.projectId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
   const { error: upErr } = await supabase.storage
-    .from('room-photos')
+    .from('documents')
     .upload(path, input.file, { contentType: type });
   if (upErr) throw new Error(upErr.message);
 
   const { data: row, error } = await supabase
-    .from('drawing_room_photos')
+    .from('documents')
     .insert({
-      room_id: input.roomId,
+      project_id: input.projectId,
       user_id: user.id,
-      storage_path: path,
       name: input.file.name,
-      size: input.file.size,
       type,
+      size: input.file.size,
+      storage_path: path,
+      folder,
     })
     .select()
     .single();
   if (error) throw new Error(error.message);
 
   const { data: urlData } = await supabase.storage
-    .from('room-photos')
+    .from('documents')
     .createSignedUrl(path, 3600);
 
   return rowToPhoto(row, urlData?.signedUrl ?? '');
@@ -184,7 +203,46 @@ export async function uploadRoomPhoto(input: {
 
 export async function deleteRoomPhoto(photo: RoomPhoto): Promise<void> {
   const supabase = getSupabaseClient();
-  await supabase.storage.from('room-photos').remove([photo.storagePath]);
-  const { error } = await supabase.from('drawing_room_photos').delete().eq('id', photo.id);
+  await supabase.storage.from('documents').remove([photo.storagePath]);
+  const { error } = await supabase.from('documents').delete().eq('id', photo.id);
   if (error) throw new Error(error.message);
+}
+
+// Re-file a room's photos when the room is renamed.
+export async function moveRoomPhotosFolder(input: {
+  projectId: string;
+  drawingName: string;
+  oldLabel: string;
+  newLabel: string;
+}): Promise<void> {
+  const supabase = getSupabaseClient();
+  const from = roomPhotosFolder(input.drawingName, input.oldLabel);
+  const to = roomPhotosFolder(input.drawingName, input.newLabel);
+  if (from === to) return;
+  const { error } = await supabase
+    .from('documents')
+    .update({ folder: to })
+    .eq('project_id', input.projectId)
+    .eq('folder', from);
+  if (error) throw new Error(error.message);
+}
+
+// Remove every photo filed under a room when the room itself is deleted.
+export async function deleteRoomPhotosFolder(input: {
+  projectId: string;
+  drawingName: string;
+  roomLabel: string;
+}): Promise<void> {
+  const supabase = getSupabaseClient();
+  const folder = roomPhotosFolder(input.drawingName, input.roomLabel);
+  const { data } = await supabase
+    .from('documents')
+    .select('id, storage_path')
+    .eq('project_id', input.projectId)
+    .eq('folder', folder);
+  const rows = (data || []) as Array<{ id: string; storage_path: string | null }>;
+  if (rows.length === 0) return;
+  const paths = rows.map((r) => r.storage_path).filter(Boolean) as string[];
+  if (paths.length > 0) await supabase.storage.from('documents').remove(paths);
+  await supabase.from('documents').delete().in('id', rows.map((r) => r.id));
 }

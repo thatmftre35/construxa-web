@@ -8,6 +8,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import {
   listRooms, createRoom, updateRoom, deleteRoom,
   listRoomPhotos, uploadRoomPhoto, deleteRoomPhoto,
+  moveRoomPhotosFolder, deleteRoomPhotosFolder,
   getDrawingImage,
   type DrawingRoom, type RoomPhoto, type Bbox,
 } from '@/lib/rooms';
@@ -157,16 +158,26 @@ export default function DrawingViewerPage() {
   const handleRename = async (room: DrawingRoom) => {
     const next = prompt('Room label', room.label)?.trim();
     if (!next || next === room.label) return;
+    if (doc) {
+      await moveRoomPhotosFolder({
+        projectId: room.projectId, drawingName: doc.name, oldLabel: room.label, newLabel: next,
+      });
+    }
     await updateRoom(room.id, { label: next });
     setRooms((prev) => prev.map((r) => (r.id === room.id ? { ...r, label: next } : r)));
     setActiveRoom((cur) => (cur?.id === room.id ? { ...cur, label: next } : cur));
+    fetchDocuments(room.projectId);
   };
 
   const handleDeleteRoom = async (room: DrawingRoom) => {
     if (!confirm(`Delete "${room.label}"? Photos in this room will also be removed.`)) return;
     await deleteRoom(room.id);
+    if (doc) {
+      await deleteRoomPhotosFolder({ projectId: room.projectId, drawingName: doc.name, roomLabel: room.label });
+    }
     setRooms((prev) => prev.filter((r) => r.id !== room.id));
     if (activeRoom?.id === room.id) setActiveRoom(null);
+    fetchDocuments(room.projectId);
   };
 
   if (!doc) {
@@ -287,6 +298,7 @@ export default function DrawingViewerPage() {
       {activeRoom && (
         <RoomDrawer
           room={activeRoom}
+          drawingName={doc.name}
           onClose={() => setActiveRoom(null)}
           onRename={() => handleRename(activeRoom)}
           onDelete={() => handleDeleteRoom(activeRoom)}
@@ -303,13 +315,15 @@ function clamp01(n: number) {
 /* ---------------- Room photo drawer ---------------- */
 
 function RoomDrawer({
-  room, onClose, onRename, onDelete,
+  room, drawingName, onClose, onRename, onDelete,
 }: {
   room: DrawingRoom;
+  drawingName: string;
   onClose: () => void;
   onRename: () => void;
   onDelete: () => void;
 }) {
+  const fetchDocuments = useProjectStore((s) => s.fetchDocuments);
   const [photos, setPhotos] = useState<RoomPhoto[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -319,11 +333,11 @@ function RoomDrawer({
 
   useEffect(() => {
     setLoading(true);
-    listRoomPhotos(room.id)
+    listRoomPhotos({ projectId: room.projectId, drawingName, roomLabel: room.label })
       .then(setPhotos)
       .catch((e) => alert((e as Error).message || 'Failed to load photos'))
       .finally(() => setLoading(false));
-  }, [room.id]);
+  }, [room.projectId, room.label, drawingName]);
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -331,10 +345,11 @@ function RoomDrawer({
     try {
       const uploads = await Promise.all(
         Array.from(files).map((f) =>
-          uploadRoomPhoto({ roomId: room.id, projectId: room.projectId, file: f })
+          uploadRoomPhoto({ projectId: room.projectId, drawingName, roomLabel: room.label, file: f })
         )
       );
       setPhotos((prev) => [...uploads, ...prev]);
+      fetchDocuments(room.projectId);
     } catch (e) {
       alert((e as Error).message || 'Upload failed');
     } finally {
@@ -346,6 +361,7 @@ function RoomDrawer({
     if (!confirm('Remove this photo from the room?')) return;
     await deleteRoomPhoto(photo);
     setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
+    fetchDocuments(room.projectId);
   };
 
   return (

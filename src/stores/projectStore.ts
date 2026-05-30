@@ -409,6 +409,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   renameDocument: async (id, name) => {
     try {
       const supabase = getSupabaseClient();
+      const doc = get().documents.find((d) => d.id === id);
       const { error } = await supabase
         .from('documents')
         .update({ name })
@@ -416,10 +417,28 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
       if (error) console.warn('Failed to rename document:', error.message);
 
+      // Room photos are filed under "Site Photos/{drawing name}/{room}". If this
+      // document is such a drawing, move those subfolders so they keep matching.
+      const moves: { id: string; folder: string }[] = [];
+      if (doc && doc.name !== name) {
+        const seg = (s: string) => (s || '').replace(/\//g, '-').trim() || 'Untitled';
+        const oldBase = `Site Photos/${seg(doc.name)}`;
+        const newBase = `Site Photos/${seg(name)}`;
+        const [{ data: exact }, { data: nested }] = await Promise.all([
+          supabase.from('documents').select('id, folder').eq('project_id', doc.projectId).eq('folder', oldBase),
+          supabase.from('documents').select('id, folder').eq('project_id', doc.projectId).like('folder', `${oldBase}/%`),
+        ]);
+        const rows = [...(exact || []), ...(nested || [])] as { id: string; folder: string }[];
+        rows.forEach((r) => moves.push({ id: r.id, folder: newBase + r.folder.slice(oldBase.length) }));
+        await Promise.all(moves.map((m) => supabase.from('documents').update({ folder: m.folder }).eq('id', m.id)));
+      }
+
       set((state) => ({
-        documents: state.documents.map((d) =>
-          d.id === id ? { ...d, name } : d
-        ),
+        documents: state.documents.map((d) => {
+          if (d.id === id) return { ...d, name };
+          const m = moves.find((x) => x.id === d.id);
+          return m ? { ...d, folder: m.folder } : d;
+        }),
       }));
     } catch (err) {
       console.warn('Error renaming document:', err);
