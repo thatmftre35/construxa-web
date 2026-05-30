@@ -12,7 +12,7 @@ import {
   type DrawingRoom, type RoomPhoto, type Bbox,
 } from '@/lib/rooms';
 
-const OVERLAY_BG = 'rgba(120, 180, 230, 0.32)';
+const OVERLAY_BG = '#78B4E6';
 const OVERLAY_BORDER = 'rgba(80, 150, 220, 0.85)';
 
 type Mode = 'view' | 'draw';
@@ -237,14 +237,14 @@ export default function DrawingViewerPage() {
             <button
               key={room.id}
               onClick={() => mode === 'view' && setActiveRoom(room)}
-              className="absolute group rounded-sm border-[1.5px] text-left"
+              className="absolute group rounded-sm border-[1.5px] flex items-center justify-center"
               style={{
                 left: x, top: y, width: w, height: h,
                 backgroundColor: OVERLAY_BG,
                 borderColor: OVERLAY_BORDER,
               }}
             >
-              <span className="inline-block m-1 px-1.5 py-0.5 text-[11px] font-semibold text-white bg-dark-navy/85 rounded">
+              <span className="inline-block px-1.5 py-0.5 text-[11px] font-semibold text-white bg-dark-navy/85 rounded">
                 {room.label}
               </span>
             </button>
