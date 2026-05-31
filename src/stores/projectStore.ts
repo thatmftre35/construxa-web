@@ -4,6 +4,8 @@ import { create } from 'zustand';
 import { Project } from '@/types/project';
 import { getSupabaseClient } from '@/lib/supabase';
 
+export type OcrStatus = 'none' | 'pending' | 'processing' | 'done' | 'failed';
+
 export interface ProjectDocument {
   id: string;
   projectId: string;
@@ -15,6 +17,29 @@ export interface ProjectDocument {
   storagePath?: string;
   folder: string;
   isRevisionGroup: boolean;
+  ocrStatus?: OcrStatus;
+}
+
+export interface DocumentSearchResult {
+  id: string;
+  projectId: string;
+  name: string;
+  folder: string;
+  type: string;
+  ocrStatus: OcrStatus;
+  snippet: string;
+  rank: number;
+}
+
+export interface FolderOcrRule {
+  projectId: string;
+  folder: string;
+}
+
+// OCR only makes sense for images and PDFs.
+export function isOcrable(type: string): boolean {
+  const t = (type || '').toLowerCase();
+  return t.startsWith('image/') || t === 'application/pdf' || t.endsWith('/pdf');
 }
 
 export interface DocumentRevision {
@@ -75,12 +100,14 @@ function rowToDocument(row: Record<string, unknown>): ProjectDocument {
     storagePath: row.storage_path as string,
     folder: (row.folder as string) || '',
     isRevisionGroup: !!(row.is_revision_group),
+    ocrStatus: ((row.ocr_status as OcrStatus) || 'none'),
   };
 }
 
 interface ProjectState {
   projects: Project[];
   documents: ProjectDocument[];
+  folderOcrRules: FolderOcrRule[];
   isLoaded: boolean;
   fetchProjects: () => Promise<void>;
   addProject: (project: Omit<Project, 'id' | 'lastActivity' | 'progress' | 'status'>) => Promise<Project>;
@@ -95,11 +122,17 @@ interface ProjectState {
   convertToRevisionGroup: (documentId: string) => Promise<void>;
   fetchRevisions: (documentId: string) => Promise<DocumentRevision[]>;
   uploadRevision: (documentId: string, file: File) => Promise<DocumentRevision | null>;
+  ocrDocument: (id: string) => Promise<void>;
+  ocrFolder: (projectId: string, folder: string) => Promise<void>;
+  fetchFolderOcrRules: (projectId: string) => Promise<void>;
+  setFolderAutoOcr: (projectId: string, folder: string, enabled: boolean) => Promise<void>;
+  searchDocuments: (query: string) => Promise<DocumentSearchResult[]>;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   projects: [],
   documents: [],
+  folderOcrRules: [],
   isLoaded: false,
 
   fetchProjects: async () => {
@@ -337,6 +370,15 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         folder,
         isRevisionGroup: false,
       };
+
+      // Auto-OCR if this folder (or an ancestor) is flagged for it.
+      const autoOcr = get().folderOcrRules.some(
+        (r) => r.projectId === projectId && (folder === r.folder || folder.startsWith(r.folder + '/'))
+      );
+      if (autoOcr && isOcrable(file.type) && docRow?.id) {
+        newDoc.ocrStatus = 'pending';
+        get().ocrDocument(docRow.id as string).catch(() => {});
+      }
 
       set((state) => ({ documents: [...state.documents, newDoc] }));
       return newDoc;
@@ -604,5 +646,106 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       console.warn('Error uploading revision:', err);
       return null;
     }
+  },
+
+  ocrDocument: async (id) => {
+    const supabase = getSupabaseClient();
+    set((state) => ({
+      documents: state.documents.map((d) => (d.id === id ? { ...d, ocrStatus: 'pending' } : d)),
+    }));
+    try {
+      const { data, error } = await supabase.functions.invoke('ocr-document', {
+        body: { documentId: id },
+      });
+      if (error) throw new Error(error.message);
+      if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
+      set((state) => ({
+        documents: state.documents.map((d) => (d.id === id ? { ...d, ocrStatus: 'done' } : d)),
+      }));
+    } catch (err) {
+      set((state) => ({
+        documents: state.documents.map((d) => (d.id === id ? { ...d, ocrStatus: 'failed' } : d)),
+      }));
+      throw err;
+    }
+  },
+
+  ocrFolder: async (projectId, folder) => {
+    const docs = get().documents.filter(
+      (d) =>
+        d.projectId === projectId &&
+        (d.folder === folder || d.folder.startsWith(folder + '/')) &&
+        !d.isRevisionGroup &&
+        isOcrable(d.type)
+    );
+    for (const d of docs) {
+      await get().ocrDocument(d.id).catch(() => {});
+    }
+  },
+
+  fetchFolderOcrRules: async (projectId) => {
+    try {
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from('folder_ocr_rules')
+        .select('project_id, folder')
+        .eq('project_id', projectId);
+      if (error) { console.warn('Failed to fetch OCR rules:', error.message); return; }
+      const rules: FolderOcrRule[] = (data || []).map((r: Record<string, unknown>) => ({
+        projectId: r.project_id as string,
+        folder: r.folder as string,
+      }));
+      set((state) => ({
+        folderOcrRules: [...state.folderOcrRules.filter((x) => x.projectId !== projectId), ...rules],
+      }));
+    } catch (err) {
+      console.warn('Error fetching OCR rules:', err);
+    }
+  },
+
+  setFolderAutoOcr: async (projectId, folder, enabled) => {
+    const supabase = getSupabaseClient();
+    if (enabled) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      const { error } = await supabase
+        .from('folder_ocr_rules')
+        .upsert({ project_id: projectId, folder, user_id: user.id }, { onConflict: 'project_id,folder' });
+      if (error) throw new Error(error.message);
+      set((state) => ({
+        folderOcrRules: [
+          ...state.folderOcrRules.filter((x) => !(x.projectId === projectId && x.folder === folder)),
+          { projectId, folder },
+        ],
+      }));
+    } else {
+      const { error } = await supabase
+        .from('folder_ocr_rules')
+        .delete()
+        .eq('project_id', projectId)
+        .eq('folder', folder);
+      if (error) throw new Error(error.message);
+      set((state) => ({
+        folderOcrRules: state.folderOcrRules.filter((x) => !(x.projectId === projectId && x.folder === folder)),
+      }));
+    }
+  },
+
+  searchDocuments: async (query) => {
+    const q = query.trim();
+    if (!q) return [];
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase.rpc('search_documents', { q });
+    if (error) { console.warn('search_documents failed:', error.message); return []; }
+    return ((data || []) as Record<string, unknown>[]).map((r) => ({
+      id: r.id as string,
+      projectId: r.project_id as string,
+      name: r.name as string,
+      folder: (r.folder as string) || '',
+      type: r.type as string,
+      ocrStatus: (r.ocr_status as OcrStatus) || 'none',
+      snippet: (r.snippet as string) || '',
+      rank: (r.rank as number) || 0,
+    }));
   },
 }));

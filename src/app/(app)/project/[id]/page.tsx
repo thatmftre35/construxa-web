@@ -46,7 +46,7 @@ import {
 } from 'lucide-react';
 import type { ProjectDocument } from '@/stores/projectStore';
 import type { Project } from '@/types/project';
-import { useProjectStore } from '@/stores/projectStore';
+import { useProjectStore, isOcrable } from '@/stores/projectStore';
 import { useApprovalStore } from '@/stores/approvalStore';
 import { useTaskStore } from '@/stores/taskStore';
 import { useEventStore } from '@/stores/eventStore';
@@ -715,9 +715,21 @@ function DocumentsTab({
   const getDocumentApprovalStatus = useApprovalStore((s) => s.getDocumentApprovalStatus);
   const fetchApprovals = useApprovalStore((s) => s.fetchApprovals);
 
+  const ocrDocument = useProjectStore((s) => s.ocrDocument);
+  const ocrFolder = useProjectStore((s) => s.ocrFolder);
+  const fetchFolderOcrRules = useProjectStore((s) => s.fetchFolderOcrRules);
+  const setFolderAutoOcr = useProjectStore((s) => s.setFolderAutoOcr);
+  const folderOcrRules = useProjectStore((s) => s.folderOcrRules);
+
   useEffect(() => {
     fetchApprovals();
   }, [fetchApprovals]);
+
+  useEffect(() => {
+    if (projectId) fetchFolderOcrRules(projectId);
+  }, [projectId, fetchFolderOcrRules]);
+
+  const autoOcrOn = !!selectedFolder && folderOcrRules.some((r) => r.projectId === projectId && r.folder === selectedFolder);
 
   // Build folder list from defaults + custom + any folders found in documents
   const docFolders = new Set(documents.map((d) => d.folder).filter(Boolean));
@@ -1152,6 +1164,31 @@ function DocumentsTab({
           count={folderDocs.length}
         />
 
+        {selectedFolder && (
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <button
+              onClick={() => {
+                const n = folderDocs.filter((d) => isOcrable(d.type) && !d.isRevisionGroup).length;
+                if (n === 0) { alert('No images or PDFs in this folder to OCR.'); return; }
+                if (!confirm(`Run OCR on ${n} file${n === 1 ? '' : 's'} in "${selectedFolder}"? They'll become searchable.`)) return;
+                ocrFolder(projectId, selectedFolder).then(() => alert('Folder text extracted and searchable.'));
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-steel-blue text-steel-blue text-sm font-semibold hover:bg-frost-white dark:hover:bg-white/5"
+            >
+              Extract text (OCR)
+            </button>
+            <label className="inline-flex items-center gap-2 text-sm text-slate-blue-gray cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={autoOcrOn}
+                onChange={(e) => setFolderAutoOcr(projectId, selectedFolder, e.target.checked).catch((err) => alert((err as Error)?.message || 'Failed to update'))}
+                className="w-4 h-4 accent-steel-blue"
+              />
+              Auto-OCR new uploads
+            </label>
+          </div>
+        )}
+
         {folderDocs.length === 0 ? (
           <Card>
             <div className="text-center py-8">
@@ -1234,6 +1271,8 @@ function DocumentsTab({
                               return null;
                             })()}
                             {doc.isRevisionGroup && <span className="text-[10px] font-medium text-slate-blue-gray bg-frost-white dark:bg-white/5 px-1.5 py-0.5 rounded shrink-0">Revisions</span>}
+                            {(doc.ocrStatus === 'pending' || doc.ocrStatus === 'processing') && <span className="text-[10px] font-semibold text-steel-blue shrink-0">OCR…</span>}
+                            {doc.ocrStatus === 'done' && <span className="text-[10px] font-semibold text-approved shrink-0">Searchable</span>}
                           </div>
                           <p className="text-xs text-slate-blue-gray mt-0.5">
                             {doc.isRevisionGroup ? 'Revision Group' : (doc.type.split('/')[1]?.toUpperCase() || 'FILE')} &middot;{' '}
@@ -1269,6 +1308,19 @@ function DocumentsTab({
                             >
                               Open drawing viewer
                             </Link>
+                          )}
+                          {isOcrable(doc.type) && !doc.isRevisionGroup && (
+                            <button
+                              onClick={() => {
+                                setContextDoc(null);
+                                ocrDocument(doc.id).catch((e) => alert((e as Error)?.message || 'OCR failed'));
+                              }}
+                              className="context-menu-item w-full px-3 py-2 text-left text-sm text-dark-navy transition-colors"
+                            >
+                              {doc.ocrStatus === 'done' ? 'Re-extract text (OCR)'
+                                : doc.ocrStatus === 'pending' || doc.ocrStatus === 'processing' ? 'Extracting text…'
+                                : 'Extract text (OCR)'}
+                            </button>
                           )}
                           <button onClick={() => { setRenamingId(doc.id); setRenameValue(doc.name); setContextDoc(null); }}
                             className="context-menu-item w-full px-3 py-2 text-left text-sm text-dark-navy transition-colors">

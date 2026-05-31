@@ -1,12 +1,17 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Building2, ClipboardList, X } from 'lucide-react';
+import Link from 'next/link';
+import { Search, Building2, ClipboardList, FileText, X } from 'lucide-react';
 import { useTaskStore } from '@/stores/taskStore';
-import { useProjectStore } from '@/stores/projectStore';
+import { useProjectStore, type DocumentSearchResult } from '@/stores/projectStore';
 import Badge from '@/components/ui/Badge';
 import Card from '@/components/ui/Card';
+
+function cleanSnippet(s: string): string {
+  return (s || '').replace(/<<|>>/g, '').replace(/\s+/g, ' ').trim();
+}
 
 const filterTabs = ['All', 'Projects', 'Tasks', 'Documents', 'People'] as const;
 type FilterTab = (typeof filterTabs)[number];
@@ -22,6 +27,23 @@ export default function SearchPage() {
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterTab>('All');
   const projects = useProjectStore((s) => s.projects);
+  const searchDocuments = useProjectStore((s) => s.searchDocuments);
+
+  // Full-text document search (OCR'd content) via Postgres, debounced.
+  const [docResults, setDocResults] = useState<DocumentSearchResult[]>([]);
+  const [searchingDocs, setSearchingDocs] = useState(false);
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) { setDocResults([]); setSearchingDocs(false); return; }
+    setSearchingDocs(true);
+    const t = setTimeout(() => {
+      searchDocuments(q)
+        .then(setDocResults)
+        .catch(() => setDocResults([]))
+        .finally(() => setSearchingDocs(false));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [query, searchDocuments]);
 
   const filteredProjects = useMemo(() => {
     if (!query.trim()) return [];
@@ -45,9 +67,13 @@ export default function SearchPage() {
     );
   }, [query, allTasks]);
 
-  const hasResults = filteredProjects.length > 0 || filteredTasks.length > 0;
   const showProjects = activeFilter === 'All' || activeFilter === 'Projects';
   const showTasks = activeFilter === 'All' || activeFilter === 'Tasks';
+  const showDocuments = activeFilter === 'All' || activeFilter === 'Documents';
+  const hasResults =
+    (showProjects && filteredProjects.length > 0) ||
+    (showTasks && filteredTasks.length > 0) ||
+    (showDocuments && docResults.length > 0);
 
   return (
     <motion.div
@@ -130,7 +156,7 @@ export default function SearchPage() {
       )}
 
       {/* Results */}
-      {query.trim() && !hasResults && (
+      {query.trim() && !hasResults && !searchingDocs && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="w-20 h-20 rounded-full bg-frost-white flex items-center justify-center mb-4">
             <Search size={32} className="text-ice-blue" />
@@ -142,7 +168,7 @@ export default function SearchPage() {
         </div>
       )}
 
-      {query.trim() && hasResults && (
+      {query.trim() && (hasResults || searchingDocs) && (
         <div className="space-y-6">
           {/* Projects */}
           {showProjects && filteredProjects.length > 0 && (
@@ -195,6 +221,44 @@ export default function SearchPage() {
                 ))}
               </div>
             </section>
+          )}
+
+          {/* Documents (OCR'd content) */}
+          {showDocuments && docResults.length > 0 && (
+            <section>
+              <h2 className="text-sm font-semibold text-slate-blue-gray uppercase tracking-wider mb-3">
+                Documents ({docResults.length})
+              </h2>
+              <div className="space-y-2">
+                {docResults.map((doc) => (
+                  <Link key={doc.id} href={`/project/${doc.projectId}`} className="block">
+                    <Card className="hover:shadow-md transition-shadow">
+                      <div className="flex items-start gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-frost-white flex items-center justify-center flex-shrink-0">
+                          <FileText size={20} className="text-steel-blue" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-dark-navy truncate">{doc.name}</h3>
+                          {doc.folder && (
+                            <p className="text-xs text-slate-blue-gray truncate">{doc.folder}</p>
+                          )}
+                          {cleanSnippet(doc.snippet) && (
+                            <p className="text-sm text-slate-blue-gray italic mt-1 line-clamp-2">…{cleanSnippet(doc.snippet)}…</p>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {showDocuments && searchingDocs && docResults.length === 0 && (
+            <div className="flex items-center gap-2 text-sm text-slate-blue-gray py-2">
+              <span className="w-3.5 h-3.5 border-2 border-steel-blue border-t-transparent rounded-full animate-spin" />
+              Searching documents…
+            </div>
           )}
         </div>
       )}
