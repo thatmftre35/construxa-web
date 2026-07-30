@@ -657,7 +657,22 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       const { data, error } = await supabase.functions.invoke('ocr-document', {
         body: { documentId: id },
       });
-      if (error) throw new Error(error.message);
+      if (error) {
+        // supabase-js surfaces a generic "non-2xx status code" message and hides
+        // the real reason in error.context (the Response). Dig it out.
+        let detail = error.message;
+        const ctx = (error as { context?: Response }).context;
+        if (ctx && typeof ctx.text === 'function') {
+          try {
+            const raw = await ctx.text();
+            const parsed = raw ? JSON.parse(raw) : null;
+            detail = (parsed as { error?: string })?.error || raw || detail;
+          } catch {
+            /* keep generic message */
+          }
+        }
+        throw new Error(detail);
+      }
       if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
       set((state) => ({
         documents: state.documents.map((d) => (d.id === id ? { ...d, ocrStatus: 'done' } : d)),
