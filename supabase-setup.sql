@@ -939,3 +939,252 @@ exception
 end;
 $$;
 grant execute on function public.update_organization(uuid, text, text, text, text, text, int) to authenticated;
+
+-- ============================================================================
+-- ORG ADMIN CENTER: invitations + seat management
+-- Mirrors supabase/migrations/20260731_org_admin_invites.sql.
+-- ============================================================================
+create table if not exists public.organization_invitations (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  email text not null,
+  org_role text not null default 'member'
+    check (org_role in ('owner','admin','member','billing_only')),
+  seat_type text not null default 'collaborator'
+    check (seat_type in ('licensed','collaborator')),
+  invited_by uuid references auth.users(id) on delete set null,
+  status text not null default 'pending'
+    check (status in ('pending','accepted','revoked')),
+  token uuid not null default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null default now() + interval '14 days',
+  accepted_at timestamptz
+);
+create index if not exists org_invites_org_idx on public.organization_invitations(organization_id);
+create index if not exists org_invites_email_idx on public.organization_invitations(lower(email));
+create unique index if not exists org_invites_pending_uniq
+  on public.organization_invitations(organization_id, lower(email))
+  where status = 'pending';
+
+alter table public.organization_invitations enable row level security;
+drop policy if exists "Org admins read invitations" on public.organization_invitations;
+create policy "Org admins read invitations"
+  on public.organization_invitations for select
+  using (
+    public.is_org_member(organization_id, 'admin')
+    or public.is_platform_admin('readonly')
+    or lower(email) = lower(auth.jwt() ->> 'email')
+  );
+
+create or replace function public.org_licensed_seat_count(p_org uuid)
+returns int language sql stable security definer set search_path = public as $$
+  select count(*)::int from public.memberships
+  where organization_id = p_org and seat_type = 'licensed' and status = 'active';
+$$;
+grant execute on function public.org_licensed_seat_count(uuid) to authenticated;
+
+create or replace function public.invite_org_member(
+  p_org uuid, p_email text, p_role text default 'member', p_seat_type text default 'collaborator'
+) returns jsonb
+language plpgsql security definer set search_path = public, auth as $$
+declare
+  v_email text := lower(trim(p_email));
+  v_user uuid;
+  v_max int;
+  v_token uuid;
+begin
+  if not (public.is_org_member(p_org, 'admin') or public.is_platform_admin('superadmin')) then
+    raise exception 'Forbidden: org admin required' using errcode = '42501';
+  end if;
+  if v_email = '' or position('@' in v_email) = 0 then
+    raise exception 'A valid email is required' using errcode = '22023';
+  end if;
+  if p_role not in ('owner','admin','member','billing_only') then
+    raise exception 'Invalid role: %', p_role using errcode = '22023';
+  end if;
+  if p_seat_type not in ('licensed','collaborator') then
+    raise exception 'Invalid seat type: %', p_seat_type using errcode = '22023';
+  end if;
+  if p_seat_type = 'collaborator' and p_role <> 'member' then
+    raise exception 'Collaborators can only hold the member role' using errcode = '22023';
+  end if;
+  select max_licensed_seats into v_max from public.organizations where id = p_org;
+  if v_max is null then
+    raise exception 'Organization not found' using errcode = 'P0002';
+  end if;
+  select id into v_user from auth.users where lower(email) = v_email limit 1;
+  if v_user is not null then
+    if exists (select 1 from public.memberships where organization_id = p_org and user_id = v_user and status = 'active') then
+      raise exception 'That user is already a member of this organization' using errcode = '23505';
+    end if;
+    if p_seat_type = 'licensed' and public.org_licensed_seat_count(p_org) >= v_max then
+      raise exception 'No licensed seats available — raise the license count first' using errcode = '22023';
+    end if;
+    insert into public.memberships (organization_id, user_id, org_role, seat_type, status, invited_by)
+    values (p_org, v_user, p_role, p_seat_type, 'active', auth.uid())
+    on conflict (organization_id, user_id)
+      do update set org_role = excluded.org_role, seat_type = excluded.seat_type, status = 'active', updated_at = now();
+    insert into public.organization_invitations
+      (organization_id, email, org_role, seat_type, invited_by, status, accepted_at)
+    values (p_org, v_email, p_role, p_seat_type, auth.uid(), 'accepted', now());
+    perform public.write_audit_log(
+      p_org, 'member.added', 'membership', v_user::text,
+      null, jsonb_build_object('email', v_email, 'org_role', p_role, 'seat_type', p_seat_type), null);
+    return jsonb_build_object('outcome', 'added', 'email', v_email, 'token', null);
+  end if;
+  insert into public.organization_invitations (organization_id, email, org_role, seat_type, invited_by)
+  values (p_org, v_email, p_role, p_seat_type, auth.uid())
+  on conflict (organization_id, lower(email)) where (status = 'pending')
+    do update set org_role = excluded.org_role, seat_type = excluded.seat_type,
+                  invited_by = excluded.invited_by, created_at = now(), expires_at = now() + interval '14 days'
+  returning token into v_token;
+  perform public.write_audit_log(
+    p_org, 'member.invited', 'invitation', v_email,
+    null, jsonb_build_object('org_role', p_role, 'seat_type', p_seat_type), null);
+  return jsonb_build_object('outcome', 'invited', 'email', v_email, 'token', v_token);
+end;
+$$;
+grant execute on function public.invite_org_member(uuid, text, text, text) to authenticated;
+
+create or replace function public.revoke_org_invitation(p_invitation uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  v_org uuid; v_email text;
+begin
+  select organization_id, email into v_org, v_email
+  from public.organization_invitations where id = p_invitation and status = 'pending';
+  if v_org is null then
+    raise exception 'Pending invitation not found' using errcode = 'P0002';
+  end if;
+  if not (public.is_org_member(v_org, 'admin') or public.is_platform_admin('superadmin')) then
+    raise exception 'Forbidden: org admin required' using errcode = '42501';
+  end if;
+  update public.organization_invitations set status = 'revoked' where id = p_invitation;
+  perform public.write_audit_log(v_org, 'invitation.revoked', 'invitation', v_email, null, null, null);
+end;
+$$;
+grant execute on function public.revoke_org_invitation(uuid) to authenticated;
+
+create or replace function public.update_org_member(
+  p_org uuid, p_user uuid, p_role text, p_seat_type text, p_status text
+) returns void language plpgsql security definer set search_path = public as $$
+declare
+  v_before jsonb; v_cur_seat text; v_max int;
+begin
+  if not (public.is_org_member(p_org, 'admin') or public.is_platform_admin('superadmin')) then
+    raise exception 'Forbidden: org admin required' using errcode = '42501';
+  end if;
+  if p_role not in ('owner','admin','member','billing_only') then
+    raise exception 'Invalid role: %', p_role using errcode = '22023';
+  end if;
+  if p_seat_type not in ('licensed','collaborator') then
+    raise exception 'Invalid seat type: %', p_seat_type using errcode = '22023';
+  end if;
+  if p_status not in ('active','suspended') then
+    raise exception 'Invalid status: %', p_status using errcode = '22023';
+  end if;
+  if p_seat_type = 'collaborator' and p_role <> 'member' then
+    raise exception 'Collaborators can only hold the member role' using errcode = '22023';
+  end if;
+  select seat_type, jsonb_build_object('org_role', org_role, 'seat_type', seat_type, 'status', status)
+    into v_cur_seat, v_before
+  from public.memberships where organization_id = p_org and user_id = p_user;
+  if v_before is null then
+    raise exception 'Membership not found' using errcode = 'P0002';
+  end if;
+  if p_seat_type = 'licensed' and p_status = 'active' and v_cur_seat <> 'licensed' then
+    select max_licensed_seats into v_max from public.organizations where id = p_org;
+    if public.org_licensed_seat_count(p_org) >= v_max then
+      raise exception 'No licensed seats available — raise the license count first' using errcode = '22023';
+    end if;
+  end if;
+  update public.memberships
+    set org_role = p_role, seat_type = p_seat_type, status = p_status, updated_at = now()
+  where organization_id = p_org and user_id = p_user;
+  perform public.write_audit_log(
+    p_org, 'member.updated', 'membership', p_user::text,
+    v_before, jsonb_build_object('org_role', p_role, 'seat_type', p_seat_type, 'status', p_status), null);
+end;
+$$;
+grant execute on function public.update_org_member(uuid, uuid, text, text, text) to authenticated;
+
+create or replace function public.accept_org_invitations()
+returns trigger language plpgsql security definer set search_path = public, auth as $$
+declare
+  v_email text; r record; v_seat text; v_role text;
+begin
+  select email into v_email from auth.users where id = new.id;
+  if v_email is null then return new; end if;
+  for r in
+    select * from public.organization_invitations
+    where lower(email) = lower(v_email) and status = 'pending'
+  loop
+    if r.seat_type = 'licensed'
+       and public.org_licensed_seat_count(r.organization_id)
+           < coalesce((select max_licensed_seats from public.organizations where id = r.organization_id), 0)
+    then v_seat := 'licensed'; v_role := r.org_role;
+    else v_seat := 'collaborator';
+         v_role := case when r.org_role in ('owner','admin','billing_only') then 'member' else r.org_role end;
+    end if;
+    insert into public.memberships (organization_id, user_id, org_role, seat_type, status, invited_by)
+    values (r.organization_id, new.id, v_role, v_seat, 'active', r.invited_by)
+    on conflict (organization_id, user_id) do nothing;
+    update public.organization_invitations set status = 'accepted', accepted_at = now() where id = r.id;
+    perform public.write_audit_log(
+      r.organization_id, 'member.joined', 'membership', new.id::text,
+      null, jsonb_build_object('via_invitation', r.id, 'seat_type', v_seat, 'org_role', v_role), null);
+  end loop;
+  return new;
+end;
+$$;
+drop trigger if exists on_profile_created_accept_org_invitations on public.profiles;
+create trigger on_profile_created_accept_org_invitations
+  after insert on public.profiles
+  for each row execute function public.accept_org_invitations();
+
+-- Redefine create_organization WITHOUT owner seeding (owner invited via
+-- invite_org_member, which emails them). Drops the previous 6-arg signature.
+drop function if exists public.create_organization(text, text, text, text, int, text);
+create or replace function public.create_organization(
+  p_name text,
+  p_slug text default null,
+  p_primary_contact_email text default null,
+  p_status text default 'trial',
+  p_max_licensed_seats int default 0
+) returns public.organizations
+language plpgsql security definer set search_path = public as $$
+declare
+  v_org public.organizations;
+  v_slug text;
+begin
+  if not public.is_platform_admin('superadmin') then
+    raise exception 'Forbidden: platform superadmin required' using errcode = '42501';
+  end if;
+  if coalesce(trim(p_name), '') = '' then
+    raise exception 'Organization name is required' using errcode = '22023';
+  end if;
+  if p_status not in ('trial','active','past_due','suspended','cancelled','purged') then
+    raise exception 'Invalid status: %', p_status using errcode = '22023';
+  end if;
+  v_slug := lower(regexp_replace(coalesce(nullif(trim(p_slug), ''), p_name), '[^a-z0-9]+', '-', 'g'));
+  v_slug := trim(both '-' from v_slug);
+  if v_slug = '' then
+    raise exception 'Could not derive a valid slug from the name/slug provided' using errcode = '22023';
+  end if;
+  insert into public.organizations
+    (name, slug, primary_contact_email, plan, status, max_licensed_seats, created_by)
+  values (
+    trim(p_name), v_slug, nullif(trim(p_primary_contact_email), ''),
+    'C1.0', p_status, greatest(coalesce(p_max_licensed_seats, 0), 0), auth.uid()
+  )
+  returning * into v_org;
+  perform public.write_platform_audit(
+    v_org.id, 'organization.created', 'organization', v_org.id::text,
+    null, to_jsonb(v_org), null);
+  return v_org;
+exception
+  when unique_violation then
+    raise exception 'An organization with slug "%" already exists', v_slug using errcode = '23505';
+end;
+$$;
+grant execute on function public.create_organization(text, text, text, text, int) to authenticated;

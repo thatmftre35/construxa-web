@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { createOrganization } from '@/lib/platform';
+import { inviteOrgMember } from '@/lib/org';
 import { statusLabel } from '@/lib/orgStatus';
 import type { OrgStatus } from '@/types/admin';
 
@@ -51,14 +52,21 @@ export default function CreateOrgModal({ open, onClose, onCreated }: CreateOrgMo
     setSubmitting(true);
     setError(null);
     try {
-      await createOrganization({
+      const org = await createOrganization({
         name: name.trim(),
         slug: effectiveSlug || undefined,
         licenses: licenses ? Math.max(0, Number(licenses)) : 0,
         status,
         primaryContactEmail: contactEmail || undefined,
-        ownerEmail: ownerEmail || undefined,
       });
+      // Invite the owner (emails them) if an owner address was provided.
+      if (ownerEmail.trim()) {
+        try {
+          await inviteOrgMember(org.id, org.name, ownerEmail.trim(), 'owner', 'licensed');
+        } catch {
+          // Non-fatal: the org exists; owner can be invited from the org page.
+        }
+      }
       reset();
       onCreated();
       onClose();

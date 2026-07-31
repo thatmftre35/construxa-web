@@ -9,10 +9,13 @@ import {
   Inbox,
   Settings,
   ShieldCheck,
+  Building2,
   LogOut,
   X,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
+import { fetchMyAdminOrgs } from '@/lib/org';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -32,6 +35,15 @@ export default function Sidebar({ isOpen, onClose, unreadCount = 0 }: SidebarPro
   const pathname = usePathname();
   const profile = useAuthStore((s) => s.profile);
   const signOut = useAuthStore((s) => s.signOut);
+  const [isOrgAdmin, setIsOrgAdmin] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetchMyAdminOrgs()
+      .then((orgs) => { if (active) setIsOrgAdmin(orgs.length > 0); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [profile?.id]);
 
   const initials = profile?.first_name && profile?.last_name
     ? `${profile.first_name[0]}${profile.last_name[0]}`.toUpperCase()
@@ -109,6 +121,24 @@ export default function Sidebar({ isOpen, onClose, unreadCount = 0 }: SidebarPro
               </Link>
             );
           })}
+
+          {/* Org owners/admins — the Organization admin center. */}
+          {isOrgAdmin && (
+            <Link
+              href="/org"
+              onClick={onClose}
+              className={`
+                flex items-center gap-3 py-3 px-4 rounded-xl transition-colors duration-200
+                ${pathname.startsWith('/org')
+                  ? 'bg-white/40 text-dark-navy font-semibold dark:bg-white/10 dark:text-ice-blue'
+                  : 'text-steel-blue hover:bg-white/25 hover:text-dark-navy dark:text-ice-blue/70 dark:hover:bg-white/6'
+                }
+              `}
+            >
+              <Building2 size={20} />
+              <span className="flex-1">Organization</span>
+            </Link>
+          )}
 
           {/* Platform staff only — the internal admin center. */}
           {profile?.platform_role && (

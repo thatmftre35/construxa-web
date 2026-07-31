@@ -18,6 +18,8 @@ export type SeatType = 'licensed' | 'collaborator';
 
 export type MembershipStatus = 'active' | 'invited' | 'suspended';
 
+export type InvitationStatus = 'pending' | 'accepted' | 'revoked';
+
 export interface Organization {
   id: string;
   name: string;
@@ -87,6 +89,47 @@ export function rowToOrganization(r: OrganizationRow): Organization {
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+  };
+}
+
+export interface OrgInvitation {
+  id: string;
+  organizationId: string;
+  email: string;
+  orgRole: OrgRole;
+  seatType: SeatType;
+  status: InvitationStatus;
+  invitedBy: string | null;
+  createdAt: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+}
+
+export interface OrgInvitationRow {
+  id: string;
+  organization_id: string;
+  email: string;
+  org_role: OrgRole;
+  seat_type: SeatType;
+  status: InvitationStatus;
+  invited_by: string | null;
+  created_at: string;
+  expires_at: string;
+  accepted_at: string | null;
+}
+
+export function rowToInvitation(r: OrgInvitationRow): OrgInvitation {
+  return {
+    id: r.id,
+    organizationId: r.organization_id,
+    email: r.email,
+    orgRole: r.org_role,
+    seatType: r.seat_type,
+    status: r.status,
+    invitedBy: r.invited_by,
+    createdAt: r.created_at,
+    expiresAt: r.expires_at,
+    acceptedAt: r.accepted_at,
   };
 }
 

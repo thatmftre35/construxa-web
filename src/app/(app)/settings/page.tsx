@@ -114,7 +114,10 @@ export default function SettingsPage() {
           <span className="font-medium text-dark-navy">Project Settings</span>
           <ChevronRight size={18} className="text-slate-blue-gray" />
         </button>
-        <button className="card w-full flex items-center justify-between hover:shadow-md transition-shadow text-left">
+        <button
+          onClick={() => router.push('/org')}
+          className="card w-full flex items-center justify-between hover:shadow-md transition-shadow text-left"
+        >
           <span className="font-medium text-dark-navy">Company Settings</span>
           <ChevronRight size={18} className="text-slate-blue-gray" />
         </button>

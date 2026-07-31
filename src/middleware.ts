@@ -61,6 +61,23 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Gate the Org Admin Center: only owners/admins of some org may enter.
+  if (user && pathname.startsWith('/org')) {
+    const { data: adminMembership } = await supabase
+      .from('memberships')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .in('org_role', ['owner', 'admin'])
+      .limit(1)
+      .maybeSingle();
+    if (!adminMembership) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
+    }
+  }
+
   return supabaseResponse;
 }
 

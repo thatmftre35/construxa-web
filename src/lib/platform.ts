@@ -47,15 +47,15 @@ export interface CreateOrgInput {
   name: string;
   slug?: string;
   primaryContactEmail?: string;
-  ownerEmail?: string;
   status?: OrgStatus;
   licenses?: number;
 }
 
 /**
  * Provision an organization via the create_organization RPC (authorize +
- * insert + seed owner + audit, atomically server-side). Plan is fixed to C1.0
- * for now. Throws with the RPC's message on failure (e.g. duplicate slug).
+ * insert + audit, atomically server-side). Plan is fixed to C1.0 for now. The
+ * owner is invited separately via inviteOrgMember. Throws with the RPC's
+ * message on failure (e.g. duplicate slug).
  */
 export async function createOrganization(input: CreateOrgInput): Promise<Organization> {
   const supabase = getSupabaseClient();
@@ -65,7 +65,6 @@ export async function createOrganization(input: CreateOrgInput): Promise<Organiz
     p_primary_contact_email: input.primaryContactEmail?.trim() || null,
     p_status: input.status ?? 'trial',
     p_max_licensed_seats: input.licenses ?? 0,
-    p_owner_email: input.ownerEmail?.trim() || null,
   });
   if (error) throw new Error(error.message);
   return rowToOrganization(data as OrganizationRow);
