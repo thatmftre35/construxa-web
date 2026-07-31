@@ -1257,3 +1257,71 @@ create or replace function public.dispute_candidates(
   limit 300;
 $$;
 grant execute on function public.dispute_candidates(uuid, timestamptz, timestamptz, text, text[]) to authenticated;
+
+-- ---------- Dispute Builder Phase 3: disputes + runs ----------
+-- Mirrors supabase/migrations/20260804_disputes.sql.
+create table if not exists public.disputes (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.projects(id) on delete cascade,
+  organization_id uuid references public.organizations(id) on delete set null,
+  title text not null default '',
+  description text not null default '',
+  date_range_start timestamptz not null,
+  date_range_end timestamptz not null,
+  status text not null default 'draft' check (status in ('draft','analyzing','ready','failed','archived')),
+  created_by uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists disputes_project_idx on public.disputes(project_id);
+
+create table if not exists public.dispute_runs (
+  id uuid primary key default gen_random_uuid(),
+  dispute_id uuid not null references public.disputes(id) on delete cascade,
+  run_number int not null default 1,
+  params_snapshot jsonb not null default '{}'::jsonb,
+  model_versions jsonb not null default '{}'::jsonb,
+  results jsonb not null default '[]'::jsonb,
+  corpus_size int not null default 0,
+  candidates_scored int not null default 0,
+  documents_selected int not null default 0,
+  status text not null default 'running' check (status in ('running','ready','failed')),
+  error text,
+  created_by uuid not null references auth.users(id) on delete set null,
+  started_at timestamptz not null default now(),
+  completed_at timestamptz
+);
+create index if not exists dispute_runs_dispute_idx on public.dispute_runs(dispute_id, run_number desc);
+
+create or replace function public.can_access_dispute_project(p_project uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.projects p
+    where p.id = p_project
+      and (p.user_id = auth.uid()
+           or exists (select 1 from public.project_shares ps
+                      where ps.project_id = p.id and ps.shared_with_id = auth.uid()))
+  );
+$$;
+grant execute on function public.can_access_dispute_project(uuid) to authenticated;
+
+alter table public.disputes enable row level security;
+drop policy if exists "Project members read disputes" on public.disputes;
+create policy "Project members read disputes" on public.disputes for select using (public.can_access_dispute_project(project_id));
+drop policy if exists "Project members create disputes" on public.disputes;
+create policy "Project members create disputes" on public.disputes for insert
+  with check (created_by = auth.uid() and public.can_access_dispute_project(project_id));
+drop policy if exists "Creator updates disputes" on public.disputes;
+create policy "Creator updates disputes" on public.disputes for update using (created_by = auth.uid());
+drop policy if exists "Creator deletes disputes" on public.disputes;
+create policy "Creator deletes disputes" on public.disputes for delete using (created_by = auth.uid());
+
+alter table public.dispute_runs enable row level security;
+drop policy if exists "Project members read runs" on public.dispute_runs;
+create policy "Project members read runs" on public.dispute_runs for select using (
+  exists (select 1 from public.disputes d where d.id = dispute_runs.dispute_id and public.can_access_dispute_project(d.project_id)));
+drop policy if exists "Project members create runs" on public.dispute_runs;
+create policy "Project members create runs" on public.dispute_runs for insert with check (
+  created_by = auth.uid() and exists (select 1 from public.disputes d where d.id = dispute_runs.dispute_id and public.can_access_dispute_project(d.project_id)));
+drop policy if exists "Creator finalizes running runs" on public.dispute_runs;
+create policy "Creator finalizes running runs" on public.dispute_runs for update using (created_by = auth.uid() and status = 'running');

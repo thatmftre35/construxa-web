@@ -10,6 +10,7 @@ import {
   Settings,
   ShieldCheck,
   Building2,
+  Scale,
   LogOut,
   X,
 } from 'lucide-react';
@@ -22,6 +23,7 @@ const navItems = [
   { href: '/search', label: 'Search', icon: Search },
   { href: '/create', label: 'Create Project', icon: PlusCircle },
   { href: '/inbox', label: 'Inbox', icon: Inbox },
+  { href: '/disputes', label: 'Disputes', icon: Scale },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
