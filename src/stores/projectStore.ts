@@ -124,6 +124,7 @@ interface ProjectState {
   uploadRevision: (documentId: string, file: File) => Promise<DocumentRevision | null>;
   ocrDocument: (id: string) => Promise<void>;
   ocrFolder: (projectId: string, folder: string) => Promise<void>;
+  extractDocument: (id: string) => Promise<void>;
   fetchFolderOcrRules: (projectId: string) => Promise<void>;
   setFolderAutoOcr: (projectId: string, folder: string, enabled: boolean) => Promise<void>;
   searchDocuments: (query: string) => Promise<DocumentSearchResult[]>;
@@ -371,13 +372,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         isRevisionGroup: false,
       };
 
-      // Auto-OCR if this folder (or an ancestor) is flagged for it.
-      const autoOcr = get().folderOcrRules.some(
-        (r) => r.projectId === projectId && (folder === r.folder || folder.startsWith(r.folder + '/'))
-      );
-      if (autoOcr && isOcrable(file.type) && docRow?.id) {
+      // Ingest extraction: extract text from every uploadable file once, at
+      // upload time (cached by content hash server-side), so the Dispute Builder
+      // and search consume a ready index instead of OCR'ing on demand.
+      if (isOcrable(file.type) && docRow?.id) {
         newDoc.ocrStatus = 'pending';
-        get().ocrDocument(docRow.id as string).catch(() => {});
+        get().extractDocument(docRow.id as string).catch(() => {});
       }
 
       set((state) => ({ documents: [...state.documents, newDoc] }));
@@ -670,6 +670,41 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
           } catch {
             /* keep generic message */
           }
+        }
+        throw new Error(detail);
+      }
+      if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
+      set((state) => ({
+        documents: state.documents.map((d) => (d.id === id ? { ...d, ocrStatus: 'done' } : d)),
+      }));
+    } catch (err) {
+      set((state) => ({
+        documents: state.documents.map((d) => (d.id === id ? { ...d, ocrStatus: 'failed' } : d)),
+      }));
+      throw err;
+    }
+  },
+
+  // Ingest extraction pipeline (Dispute Builder): extract text once per file,
+  // cached by content hash server-side. Runs on every upload and can backfill.
+  extractDocument: async (id) => {
+    const supabase = getSupabaseClient();
+    set((state) => ({
+      documents: state.documents.map((d) => (d.id === id ? { ...d, ocrStatus: 'pending' } : d)),
+    }));
+    try {
+      const { data, error } = await supabase.functions.invoke('extract-document', {
+        body: { documentId: id },
+      });
+      if (error) {
+        let detail = error.message;
+        const ctx = (error as { context?: Response }).context;
+        if (ctx && typeof ctx.text === 'function') {
+          try {
+            const raw = await ctx.text();
+            const parsed = raw ? JSON.parse(raw) : null;
+            detail = (parsed as { error?: string })?.error || raw || detail;
+          } catch { /* keep generic */ }
         }
         throw new Error(detail);
       }

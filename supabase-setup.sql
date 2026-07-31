@@ -1188,3 +1188,21 @@ exception
 end;
 $$;
 grant execute on function public.create_organization(text, text, text, text, int) to authenticated;
+
+-- ============================================================================
+-- DISPUTE BUILDER Phase 1: shared document extraction index
+-- Mirrors supabase/migrations/20260802_document_extractions.sql.
+-- ============================================================================
+create table if not exists public.document_extractions (
+  content_hash text primary key,
+  page_count int not null default 0,
+  text_by_page jsonb not null default '[]'::jsonb,
+  full_text text not null default '',
+  ocr_engine text not null default 'google-vision',
+  ocr_confidence real,
+  language text,
+  extracted_at timestamptz not null default now()
+);
+alter table public.documents add column if not exists content_hash text;
+create index if not exists documents_content_hash_idx on public.documents(content_hash);
+alter table public.document_extractions enable row level security;
