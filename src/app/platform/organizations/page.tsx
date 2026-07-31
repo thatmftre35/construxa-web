@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Building2, Search, Plus } from 'lucide-react';
 import { fetchOrganizations, type OrgWithCounts } from '@/lib/platform';
@@ -12,6 +13,7 @@ export default function OrganizationsPage() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const router = useRouter();
 
   const load = useCallback(() => {
     setError(null);
@@ -108,7 +110,8 @@ export default function OrganizationsPage() {
                 filtered.map((o) => (
                   <tr
                     key={o.id}
-                    className="border-b border-light-gray last:border-0 hover:bg-white/25 dark:hover:bg-white/5 transition-colors"
+                    onClick={() => router.push(`/platform/organizations/${o.id}`)}
+                    className="border-b border-light-gray last:border-0 hover:bg-white/25 dark:hover:bg-white/5 transition-colors cursor-pointer"
                   >
                     <td className="px-4 py-3">
                       <div className="font-medium text-dark-navy dark:text-frost-white">{o.name}</div>

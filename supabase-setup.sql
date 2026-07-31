@@ -774,3 +774,53 @@ exception
 end;
 $$;
 grant execute on function public.create_organization(text, text, text, text, text, int, text) to authenticated;
+
+-- ---------- Service RPC: set_organization_status (lifecycle state machine) ----------
+-- Mirrors supabase/migrations/20260731_org_lifecycle_rpc.sql.
+create or replace function public.set_organization_status(
+  p_org uuid,
+  p_new_status text,
+  p_reason text default null
+) returns public.organizations
+language plpgsql security definer set search_path = public as $$
+declare
+  v_org public.organizations;
+  v_old text;
+  v_allowed boolean;
+begin
+  if not public.is_platform_admin('superadmin') then
+    raise exception 'Forbidden: platform superadmin required' using errcode = '42501';
+  end if;
+  select * into v_org from public.organizations where id = p_org for update;
+  if not found then
+    raise exception 'Organization not found' using errcode = 'P0002';
+  end if;
+  v_old := v_org.status;
+  if v_old = p_new_status then
+    raise exception 'Organization is already %', p_new_status using errcode = '22023';
+  end if;
+  v_allowed := case v_old
+    when 'trial'     then p_new_status in ('active','suspended','cancelled')
+    when 'active'    then p_new_status in ('past_due','suspended','cancelled')
+    when 'past_due'  then p_new_status in ('active','suspended','cancelled')
+    when 'suspended' then p_new_status in ('active','cancelled')
+    when 'cancelled' then p_new_status in ('active')
+    else false
+  end;
+  if not v_allowed then
+    raise exception 'Illegal transition: % -> %', v_old, p_new_status using errcode = '22023';
+  end if;
+  update public.organizations
+    set status = p_new_status, updated_at = now()
+    where id = p_org
+    returning * into v_org;
+  perform public.write_platform_audit(
+    p_org, 'organization.status_changed', 'organization', p_org::text,
+    jsonb_build_object('status', v_old),
+    jsonb_build_object('status', p_new_status, 'reason', p_reason),
+    null
+  );
+  return v_org;
+end;
+$$;
+grant execute on function public.set_organization_status(uuid, text, text) to authenticated;

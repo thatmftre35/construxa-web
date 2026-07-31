@@ -8,6 +8,9 @@ import {
   type Organization,
   type OrganizationRow,
   type OrgStatus,
+  type OrgRole,
+  type SeatType,
+  type MembershipStatus,
 } from '@/types/admin';
 
 export interface OrgWithCounts extends Organization {
@@ -68,4 +71,90 @@ export async function createOrganization(input: CreateOrgInput): Promise<Organiz
   });
   if (error) throw new Error(error.message);
   return rowToOrganization(data as OrganizationRow);
+}
+
+export interface OrgMember {
+  userId: string;
+  email: string | null;
+  orgRole: OrgRole;
+  seatType: SeatType;
+  status: MembershipStatus;
+}
+
+export interface OrgDetail {
+  org: Organization;
+  members: OrgMember[];
+}
+
+/** A single organization with its member list (emails resolved server-side). */
+export async function fetchOrganization(id: string): Promise<OrgDetail> {
+  const supabase = getSupabaseClient();
+
+  const { data: orgRow, error: orgErr } = await supabase
+    .from('organizations').select('*').eq('id', id).single();
+  if (orgErr) throw new Error(orgErr.message);
+
+  const { data: memRows, error: memErr } = await supabase
+    .from('memberships')
+    .select('user_id, org_role, seat_type, status')
+    .eq('organization_id', id);
+  if (memErr) throw new Error(memErr.message);
+
+  type MemRow = { user_id: string; org_role: OrgRole; seat_type: SeatType; status: MembershipStatus };
+  const rows = (memRows ?? []) as MemRow[];
+  const ids = rows.map((m) => m.user_id);
+  const emailMap = new Map<string, string>();
+  if (ids.length) {
+    const { data: emails } = await supabase.rpc('get_user_emails_by_ids', { ids });
+    for (const e of (emails ?? []) as { id: string; email: string }[]) emailMap.set(e.id, e.email);
+  }
+
+  const members: OrgMember[] = rows.map((row) => {
+    return {
+      userId: row.user_id,
+      email: emailMap.get(row.user_id) ?? null,
+      orgRole: row.org_role,
+      seatType: row.seat_type,
+      status: row.status,
+    };
+  });
+
+  return { org: rowToOrganization(orgRow as OrganizationRow), members };
+}
+
+/** Transition an org's lifecycle status via the state-machine RPC. */
+export async function setOrganizationStatus(
+  id: string, status: OrgStatus, reason?: string,
+): Promise<Organization> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.rpc('set_organization_status', {
+    p_org: id,
+    p_new_status: status,
+    p_reason: reason?.trim() || null,
+  });
+  if (error) throw new Error(error.message);
+  return rowToOrganization(data as OrganizationRow);
+}
+
+export interface AuditEntry {
+  action: string;
+  createdAt: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+}
+
+/** Recent platform-audit entries for an org, newest first. */
+export async function fetchOrgAudit(id: string, limit = 20): Promise<AuditEntry[]> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('platform_audit')
+    .select('action, before, after, created_at')
+    .eq('organization_id', id)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as {
+    action: string; before: Record<string, unknown> | null;
+    after: Record<string, unknown> | null; created_at: string;
+  }[]).map((r) => ({ action: r.action, createdAt: r.created_at, before: r.before, after: r.after }));
 }
