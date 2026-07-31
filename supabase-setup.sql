@@ -1206,3 +1206,54 @@ create table if not exists public.document_extractions (
 alter table public.documents add column if not exists content_hash text;
 create index if not exists documents_content_hash_idx on public.documents(content_hash);
 alter table public.document_extractions enable row level security;
+
+-- ---------- Dispute Builder Phase 2: retrieval resolver ----------
+-- Mirrors supabase/migrations/20260803_dispute_candidates.sql.
+create or replace function public.dispute_candidates(
+  p_project uuid,
+  p_start timestamptz,
+  p_end timestamptz,
+  p_query text default '',
+  p_keywords text[] default '{}'
+) returns table (
+  document_id uuid, name text, type text, folder text,
+  governing_date timestamptz, in_window boolean, keyword_hit boolean,
+  inclusion_reason text, rank real, snippet text
+) language sql stable set search_path = public as $$
+  with tsq as (
+    select case when coalesce(trim(p_query), '') = '' then null
+                else websearch_to_tsquery('english', p_query) end as q
+  ),
+  accessible as (
+    select d.id, d.name, d.type, d.folder, d.created_at, d.search_tsv, d.ocr_text
+    from public.documents d
+    where d.project_id = p_project
+      and exists (
+        select 1 from public.projects p
+        where p.id = d.project_id
+          and (p.user_id = auth.uid()
+               or exists (select 1 from public.project_shares ps
+                          where ps.project_id = p.id and ps.shared_with_id = auth.uid()))
+      )
+  ),
+  scored as (
+    select a.id, a.name, a.type, a.folder, a.created_at,
+      (a.created_at >= p_start and a.created_at <= p_end) as in_window,
+      exists (select 1 from unnest(p_keywords) k
+              where k <> '' and (a.ocr_text ilike '%' || k || '%' or a.name ilike '%' || k || '%')) as keyword_hit,
+      case when (select q from tsq) is not null then ts_rank(a.search_tsv, (select q from tsq)) else 0 end as rank,
+      case when (select q from tsq) is not null
+           then ts_headline('english', coalesce(a.ocr_text, ''), (select q from tsq),
+                'MaxFragments=2, MinWords=3, MaxWords=14, StartSel=<<, StopSel=>>') else '' end as snippet
+    from accessible a
+  )
+  select s.id, s.name, s.type, s.folder, s.created_at as governing_date,
+    s.in_window, s.keyword_hit,
+    case when s.in_window then 'in_window' when s.keyword_hit then 'keyword_match' else 'text_match' end,
+    s.rank, s.snippet
+  from scored s
+  where s.in_window or s.keyword_hit or ((select q from tsq) is not null and s.rank > 0)
+  order by s.in_window desc, s.keyword_hit desc, s.rank desc
+  limit 300;
+$$;
+grant execute on function public.dispute_candidates(uuid, timestamptz, timestamptz, text, text[]) to authenticated;
