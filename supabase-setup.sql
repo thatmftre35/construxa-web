@@ -454,3 +454,262 @@ create policy "View collaborator profiles"
       )
     )
   );
+
+-- ============================================================================
+-- ADMIN CENTER FOUNDATION (Phase 1)
+-- Mirrors supabase/migrations/20260731_admin_foundation.sql (iOS repo, the live
+-- migration home). Organizations, memberships, multi-tenancy, platform roles,
+-- tenant-context helpers, and append-only audit logs. Idempotent.
+-- ============================================================================
+
+create table if not exists public.organizations (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  slug text not null unique,
+  primary_contact_email text,
+  status text not null default 'trial'
+    check (status in ('trial','active','past_due','suspended','cancelled','purged')),
+  plan text not null default 'trial',
+  volume_tier text,
+  trial_ends_at timestamptz,
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists organizations_status_idx on public.organizations(status);
+
+create table if not exists public.memberships (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  org_role text not null default 'member'
+    check (org_role in ('owner','admin','member','billing_only')),
+  seat_type text not null default 'collaborator'
+    check (seat_type in ('licensed','collaborator')),
+  status text not null default 'active'
+    check (status in ('active','invited','suspended')),
+  invited_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (organization_id, user_id)
+);
+create index if not exists memberships_user_idx on public.memberships(user_id);
+create index if not exists memberships_org_idx on public.memberships(organization_id);
+
+alter table public.profiles
+  add column if not exists platform_role text
+    check (platform_role in ('superadmin','support','billing','readonly'));
+
+create or replace function public.org_role_rank(p_role text)
+returns int language sql immutable as $$
+  select case p_role
+    when 'owner' then 4 when 'admin' then 3 when 'member' then 2
+    when 'billing_only' then 1 else 0 end;
+$$;
+
+create or replace function public.platform_role_rank(p_role text)
+returns int language sql immutable as $$
+  select case p_role
+    when 'superadmin' then 4 when 'support' then 3 when 'billing' then 2
+    when 'readonly' then 1 else 0 end;
+$$;
+
+create or replace function public.is_org_member(p_org uuid, p_min_role text default 'member')
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.memberships m
+    where m.organization_id = p_org
+      and m.user_id = auth.uid()
+      and m.status = 'active'
+      and public.org_role_rank(m.org_role) >= public.org_role_rank(p_min_role)
+  );
+$$;
+
+create or replace function public.is_platform_admin(p_min_role text default 'readonly')
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid()
+      and p.platform_role is not null
+      and public.platform_role_rank(p.platform_role) >= public.platform_role_rank(p_min_role)
+  );
+$$;
+
+grant execute on function public.org_role_rank(text) to authenticated;
+grant execute on function public.platform_role_rank(text) to authenticated;
+grant execute on function public.is_org_member(uuid, text) to authenticated;
+grant execute on function public.is_platform_admin(text) to authenticated;
+
+alter table public.organizations enable row level security;
+drop policy if exists "Members can view their organizations" on public.organizations;
+create policy "Members can view their organizations"
+  on public.organizations for select
+  using (public.is_org_member(id, 'member') or public.is_platform_admin('readonly'));
+drop policy if exists "Org admins can update their organization" on public.organizations;
+create policy "Org admins can update their organization"
+  on public.organizations for update
+  using (public.is_org_member(id, 'admin') or public.is_platform_admin('superadmin'));
+drop policy if exists "Platform superadmin can insert organizations" on public.organizations;
+create policy "Platform superadmin can insert organizations"
+  on public.organizations for insert
+  with check (public.is_platform_admin('superadmin'));
+drop policy if exists "Platform superadmin can delete organizations" on public.organizations;
+create policy "Platform superadmin can delete organizations"
+  on public.organizations for delete
+  using (public.is_platform_admin('superadmin'));
+
+alter table public.memberships enable row level security;
+drop policy if exists "Members can view memberships in their orgs" on public.memberships;
+create policy "Members can view memberships in their orgs"
+  on public.memberships for select
+  using (
+    user_id = auth.uid()
+    or public.is_org_member(organization_id, 'admin')
+    or public.is_platform_admin('readonly')
+  );
+drop policy if exists "Org admins insert memberships" on public.memberships;
+create policy "Org admins insert memberships"
+  on public.memberships for insert
+  with check (public.is_org_member(organization_id, 'admin') or public.is_platform_admin('superadmin'));
+drop policy if exists "Org admins update memberships" on public.memberships;
+create policy "Org admins update memberships"
+  on public.memberships for update
+  using (public.is_org_member(organization_id, 'admin') or public.is_platform_admin('superadmin'));
+drop policy if exists "Org admins remove memberships" on public.memberships;
+create policy "Org admins remove memberships"
+  on public.memberships for delete
+  using (public.is_org_member(organization_id, 'admin') or public.is_platform_admin('superadmin'));
+
+alter table public.projects      add column if not exists organization_id uuid references public.organizations(id) on delete cascade;
+alter table public.documents     add column if not exists organization_id uuid references public.organizations(id) on delete cascade;
+alter table public.events        add column if not exists organization_id uuid references public.organizations(id) on delete cascade;
+alter table public.tasks         add column if not exists organization_id uuid references public.organizations(id) on delete cascade;
+alter table public.messages      add column if not exists organization_id uuid references public.organizations(id) on delete cascade;
+alter table public.announcements add column if not exists organization_id uuid references public.organizations(id) on delete cascade;
+create index if not exists projects_org_idx      on public.projects(organization_id);
+create index if not exists documents_org_idx     on public.documents(organization_id);
+create index if not exists events_org_idx        on public.events(organization_id);
+create index if not exists tasks_org_idx         on public.tasks(organization_id);
+create index if not exists messages_org_idx      on public.messages(organization_id);
+create index if not exists announcements_org_idx on public.announcements(organization_id);
+
+do $$
+declare
+  r record;
+  new_org uuid;
+begin
+  for r in (select distinct user_id from public.projects where organization_id is null) loop
+    insert into public.organizations (name, slug, created_by, status, plan)
+    values (
+      coalesce(
+        (select nullif(company, '') from public.profiles where id = r.user_id),
+        'Organization ' || left(r.user_id::text, 8)
+      ),
+      'org-' || substr(md5(r.user_id::text), 1, 10),
+      r.user_id, 'active', 'trial'
+    )
+    returning id into new_org;
+    insert into public.memberships (organization_id, user_id, org_role, seat_type, status)
+    values (new_org, r.user_id, 'owner', 'licensed', 'active')
+    on conflict (organization_id, user_id) do nothing;
+    update public.projects set organization_id = new_org
+      where user_id = r.user_id and organization_id is null;
+  end loop;
+  update public.documents d      set organization_id = p.organization_id from public.projects p where d.project_id = p.id and d.organization_id is null;
+  update public.events e         set organization_id = p.organization_id from public.projects p where e.project_id = p.id and e.organization_id is null;
+  update public.tasks t          set organization_id = p.organization_id from public.projects p where t.project_id = p.id and t.organization_id is null;
+  update public.messages m       set organization_id = p.organization_id from public.projects p where m.project_id = p.id and m.organization_id is null;
+  update public.announcements a  set organization_id = p.organization_id from public.projects p where a.project_id = p.id and a.organization_id is null;
+end $$;
+
+create table if not exists public.platform_audit (
+  id uuid primary key default gen_random_uuid(),
+  actor_user_id uuid,
+  organization_id uuid,
+  action text not null,
+  target_type text,
+  target_id text,
+  before jsonb,
+  after jsonb,
+  ip inet,
+  user_agent text,
+  support_session_id uuid,
+  inside_impersonation boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists platform_audit_org_idx     on public.platform_audit(organization_id);
+create index if not exists platform_audit_actor_idx   on public.platform_audit(actor_user_id);
+create index if not exists platform_audit_created_idx on public.platform_audit(created_at desc);
+
+create table if not exists public.audit_log (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null,
+  actor_user_id uuid,
+  action text not null,
+  target_type text,
+  target_id text,
+  before jsonb,
+  after jsonb,
+  ip inet,
+  user_agent text,
+  support_session_id uuid,
+  inside_impersonation boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists audit_log_org_idx   on public.audit_log(organization_id, created_at desc);
+create index if not exists audit_log_actor_idx on public.audit_log(actor_user_id);
+
+create or replace function public.forbid_mutation()
+returns trigger language plpgsql as $$
+begin
+  raise exception 'Audit rows are append-only (% not allowed on %)', tg_op, tg_table_name;
+end;
+$$;
+drop trigger if exists platform_audit_no_mutate on public.platform_audit;
+create trigger platform_audit_no_mutate
+  before update or delete on public.platform_audit
+  for each row execute function public.forbid_mutation();
+drop trigger if exists audit_log_no_mutate on public.audit_log;
+create trigger audit_log_no_mutate
+  before update or delete on public.audit_log
+  for each row execute function public.forbid_mutation();
+
+alter table public.audit_log enable row level security;
+drop policy if exists "Org admins can read their audit log" on public.audit_log;
+create policy "Org admins can read their audit log"
+  on public.audit_log for select
+  using (public.is_org_member(organization_id, 'admin') or public.is_platform_admin('readonly'));
+alter table public.platform_audit enable row level security;
+drop policy if exists "Platform staff can read platform audit" on public.platform_audit;
+create policy "Platform staff can read platform audit"
+  on public.platform_audit for select
+  using (public.is_platform_admin('readonly'));
+
+create or replace function public.write_audit_log(
+  p_org uuid, p_action text, p_target_type text, p_target_id text,
+  p_before jsonb, p_after jsonb, p_support_session uuid default null
+) returns void language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.audit_log
+    (organization_id, actor_user_id, action, target_type, target_id, before, after,
+     support_session_id, inside_impersonation)
+  values
+    (p_org, auth.uid(), p_action, p_target_type, p_target_id, p_before, p_after,
+     p_support_session, p_support_session is not null);
+end;
+$$;
+create or replace function public.write_platform_audit(
+  p_org uuid, p_action text, p_target_type text, p_target_id text,
+  p_before jsonb, p_after jsonb, p_support_session uuid default null
+) returns void language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.platform_audit
+    (actor_user_id, organization_id, action, target_type, target_id, before, after,
+     support_session_id, inside_impersonation)
+  values
+    (auth.uid(), p_org, p_action, p_target_type, p_target_id, p_before, p_after,
+     p_support_session, p_support_session is not null);
+end;
+$$;
+revoke execute on function public.write_audit_log(uuid, text, text, text, jsonb, jsonb, uuid) from public, anon, authenticated;
+revoke execute on function public.write_platform_audit(uuid, text, text, text, jsonb, jsonb, uuid) from public, anon, authenticated;

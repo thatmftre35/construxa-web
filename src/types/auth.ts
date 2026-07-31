@@ -12,9 +12,14 @@ export interface Profile {
   workflow_preferences: string[] | null;
   plan: string;
   receive_updates: boolean;
+  // Platform staff role, separate from any org membership. null = ordinary user.
+  platform_role: PlatformRole | null;
   created_at: string;
   updated_at: string;
 }
+
+// Platform-staff access levels (gates the /platform admin center).
+export type PlatformRole = 'superadmin' | 'support' | 'billing' | 'readonly';
 
 export interface SignUpFormData {
   email: string;
