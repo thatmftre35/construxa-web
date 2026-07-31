@@ -48,15 +48,14 @@ export interface CreateOrgInput {
   slug?: string;
   primaryContactEmail?: string;
   ownerEmail?: string;
-  plan?: string;
   status?: OrgStatus;
-  trialDays?: number;
+  licenses?: number;
 }
 
 /**
  * Provision an organization via the create_organization RPC (authorize +
- * insert + seed owner + audit, atomically server-side). Throws with the RPC's
- * message on failure (e.g. duplicate slug, not authorized).
+ * insert + seed owner + audit, atomically server-side). Plan is fixed to C1.0
+ * for now. Throws with the RPC's message on failure (e.g. duplicate slug).
  */
 export async function createOrganization(input: CreateOrgInput): Promise<Organization> {
   const supabase = getSupabaseClient();
@@ -64,10 +63,34 @@ export async function createOrganization(input: CreateOrgInput): Promise<Organiz
     p_name: input.name,
     p_slug: input.slug?.trim() || null,
     p_primary_contact_email: input.primaryContactEmail?.trim() || null,
-    p_plan: input.plan?.trim() || 'trial',
     p_status: input.status ?? 'trial',
-    p_trial_days: input.trialDays ?? null,
+    p_max_licensed_seats: input.licenses ?? 0,
     p_owner_email: input.ownerEmail?.trim() || null,
+  });
+  if (error) throw new Error(error.message);
+  return rowToOrganization(data as OrganizationRow);
+}
+
+export interface UpdateOrgInput {
+  name: string;
+  slug: string;
+  primaryContactEmail: string;
+  plan: string;
+  volumeTier: string;
+  licenses: number;
+}
+
+/** Edit an org's fields via the update_organization RPC (status excluded). */
+export async function updateOrganization(id: string, input: UpdateOrgInput): Promise<Organization> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.rpc('update_organization', {
+    p_org: id,
+    p_name: input.name,
+    p_slug: input.slug,
+    p_primary_contact_email: input.primaryContactEmail,
+    p_plan: input.plan,
+    p_volume_tier: input.volumeTier,
+    p_max_licensed_seats: input.licenses,
   });
   if (error) throw new Error(error.message);
   return rowToOrganization(data as OrganizationRow);
@@ -84,6 +107,7 @@ export interface OrgMember {
 export interface OrgDetail {
   org: Organization;
   members: OrgMember[];
+  licensedUsed: number;
 }
 
 /** A single organization with its member list (emails resolved server-side). */
@@ -119,7 +143,8 @@ export async function fetchOrganization(id: string): Promise<OrgDetail> {
     };
   });
 
-  return { org: rowToOrganization(orgRow as OrganizationRow), members };
+  const licensedUsed = members.filter((m) => m.seatType === 'licensed').length;
+  return { org: rowToOrganization(orgRow as OrganizationRow), members, licensedUsed };
 }
 
 /** Transition an org's lifecycle status via the state-machine RPC. */

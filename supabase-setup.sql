@@ -824,3 +824,118 @@ begin
 end;
 $$;
 grant execute on function public.set_organization_status(uuid, text, text) to authenticated;
+
+-- ---------- Org licensed-seat allotment + editable fields ----------
+-- Mirrors supabase/migrations/20260731_org_edit_and_seats.sql.
+alter table public.organizations
+  add column if not exists max_licensed_seats int not null default 0;
+
+drop function if exists public.create_organization(text, text, text, text, text, int, text);
+
+create or replace function public.create_organization(
+  p_name text,
+  p_slug text default null,
+  p_primary_contact_email text default null,
+  p_status text default 'trial',
+  p_max_licensed_seats int default 0,
+  p_owner_email text default null
+) returns public.organizations
+language plpgsql security definer set search_path = public, auth as $$
+declare
+  v_org public.organizations;
+  v_owner uuid;
+  v_slug text;
+begin
+  if not public.is_platform_admin('superadmin') then
+    raise exception 'Forbidden: platform superadmin required' using errcode = '42501';
+  end if;
+  if coalesce(trim(p_name), '') = '' then
+    raise exception 'Organization name is required' using errcode = '22023';
+  end if;
+  if p_status not in ('trial','active','past_due','suspended','cancelled','purged') then
+    raise exception 'Invalid status: %', p_status using errcode = '22023';
+  end if;
+  v_slug := lower(regexp_replace(coalesce(nullif(trim(p_slug), ''), p_name), '[^a-z0-9]+', '-', 'g'));
+  v_slug := trim(both '-' from v_slug);
+  if v_slug = '' then
+    raise exception 'Could not derive a valid slug from the name/slug provided' using errcode = '22023';
+  end if;
+  insert into public.organizations
+    (name, slug, primary_contact_email, plan, status, max_licensed_seats, created_by)
+  values (
+    trim(p_name), v_slug, nullif(trim(p_primary_contact_email), ''),
+    'C1.0', p_status, greatest(coalesce(p_max_licensed_seats, 0), 0), auth.uid()
+  )
+  returning * into v_org;
+  if coalesce(trim(p_owner_email), '') <> '' then
+    select id into v_owner from auth.users where email = lower(trim(p_owner_email)) limit 1;
+    if v_owner is not null then
+      insert into public.memberships
+        (organization_id, user_id, org_role, seat_type, status, invited_by)
+      values (v_org.id, v_owner, 'owner', 'licensed', 'active', auth.uid())
+      on conflict (organization_id, user_id) do nothing;
+    end if;
+  end if;
+  perform public.write_platform_audit(
+    v_org.id, 'organization.created', 'organization', v_org.id::text,
+    null, to_jsonb(v_org), null
+  );
+  return v_org;
+exception
+  when unique_violation then
+    raise exception 'An organization with slug "%" already exists', v_slug using errcode = '23505';
+end;
+$$;
+grant execute on function public.create_organization(text, text, text, text, int, text) to authenticated;
+
+create or replace function public.update_organization(
+  p_org uuid,
+  p_name text,
+  p_slug text,
+  p_primary_contact_email text,
+  p_plan text,
+  p_volume_tier text,
+  p_max_licensed_seats int
+) returns public.organizations
+language plpgsql security definer set search_path = public as $$
+declare
+  v_before public.organizations;
+  v_org public.organizations;
+  v_slug text;
+begin
+  if not public.is_platform_admin('superadmin') then
+    raise exception 'Forbidden: platform superadmin required' using errcode = '42501';
+  end if;
+  select * into v_before from public.organizations where id = p_org for update;
+  if not found then
+    raise exception 'Organization not found' using errcode = 'P0002';
+  end if;
+  if coalesce(trim(p_name), '') = '' then
+    raise exception 'Organization name is required' using errcode = '22023';
+  end if;
+  v_slug := lower(regexp_replace(coalesce(nullif(trim(p_slug), ''), p_name), '[^a-z0-9]+', '-', 'g'));
+  v_slug := trim(both '-' from v_slug);
+  if v_slug = '' then
+    raise exception 'Could not derive a valid slug from the name/slug provided' using errcode = '22023';
+  end if;
+  update public.organizations set
+    name = trim(p_name),
+    slug = v_slug,
+    primary_contact_email = nullif(trim(p_primary_contact_email), ''),
+    plan = coalesce(nullif(trim(p_plan), ''), 'C1.0'),
+    volume_tier = nullif(trim(p_volume_tier), ''),
+    max_licensed_seats = greatest(coalesce(p_max_licensed_seats, 0), 0),
+    updated_at = now()
+  where id = p_org
+  returning * into v_org;
+  perform public.write_platform_audit(
+    p_org, 'organization.updated', 'organization', p_org::text,
+    to_jsonb(v_before), to_jsonb(v_org), null
+  );
+  return v_org;
+exception
+  when unique_violation then
+    raise exception 'An organization with slug "%" already exists', v_slug using errcode = '23505';
+end;
+$$;
+grant execute on function public.update_organization(uuid, text, text, text, text, text, int) to authenticated;

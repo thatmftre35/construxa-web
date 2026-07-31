@@ -26,6 +26,7 @@ export interface Organization {
   status: OrgStatus;
   plan: string;
   volumeTier: string | null;
+  maxLicensedSeats: number;
   trialEndsAt: string | null;
   createdBy: string | null;
   createdAt: string;
@@ -53,6 +54,7 @@ export interface OrganizationRow {
   status: OrgStatus;
   plan: string;
   volume_tier: string | null;
+  max_licensed_seats: number;
   trial_ends_at: string | null;
   created_by: string | null;
   created_at: string;
@@ -80,6 +82,7 @@ export function rowToOrganization(r: OrganizationRow): Organization {
     status: r.status,
     plan: r.plan,
     volumeTier: r.volume_tier,
+    maxLicensedSeats: r.max_licensed_seats ?? 0,
     trialEndsAt: r.trial_ends_at,
     createdBy: r.created_by,
     createdAt: r.created_at,

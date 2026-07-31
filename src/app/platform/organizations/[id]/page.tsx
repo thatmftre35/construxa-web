@@ -4,13 +4,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Users, Loader2, History } from 'lucide-react';
+import { ArrowLeft, Users, Loader2, History, Pencil } from 'lucide-react';
 import {
   fetchOrganization, fetchOrgAudit, setOrganizationStatus,
   type OrgDetail, type AuditEntry,
 } from '@/lib/platform';
 import { orgStatusClass, statusLabel } from '@/lib/orgStatus';
 import { ORG_TRANSITIONS, STATUS_ACTION_LABEL, DESTRUCTIVE_STATUSES } from '@/lib/orgLifecycle';
+import EditOrgModal from '@/components/platform/EditOrgModal';
 import type { OrgStatus } from '@/types/admin';
 
 export default function OrganizationDetailPage() {
@@ -21,6 +22,7 @@ export default function OrganizationDetailPage() {
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [target, setTarget] = useState<OrgStatus | null>(null);
+  const [editing, setEditing] = useState(false);
 
   const load = useCallback(() => {
     setError(null);
@@ -48,7 +50,7 @@ export default function OrganizationDetailPage() {
     );
   }
 
-  const { org, members } = detail;
+  const { org, members, licensedUsed } = detail;
   const nextStatuses = ORG_TRANSITIONS[org.status];
 
   return (
@@ -69,14 +71,17 @@ export default function OrganizationDetailPage() {
           </div>
           <p className="text-sm text-slate-blue-gray mt-1 font-mono">{org.slug}</p>
         </div>
+        <button onClick={() => setEditing(true)} className="btn-secondary flex items-center gap-2">
+          <Pencil size={16} /> Edit
+        </button>
       </div>
 
       {/* Overview */}
       <div className="card grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Field label="Plan" value={org.plan} />
+        <Field label="Licenses" value={`${licensedUsed} / ${org.maxLicensedSeats}`} />
         <Field label="Members" value={String(members.length)} />
         <Field label="Created" value={new Date(org.createdAt).toLocaleDateString()} />
-        <Field label="Trial ends" value={org.trialEndsAt ? new Date(org.trialEndsAt).toLocaleDateString() : '—'} />
         <Field label="Contact" value={org.primaryContactEmail ?? '—'} />
         <Field label="Volume tier" value={org.volumeTier ?? '—'} />
       </div>
@@ -170,6 +175,10 @@ export default function OrganizationDetailPage() {
           onClose={() => setTarget(null)}
           onDone={() => { setTarget(null); load(); }}
         />
+      )}
+
+      {editing && (
+        <EditOrgModal org={org} onClose={() => setEditing(false)} onSaved={load} />
       )}
     </motion.div>
   );
