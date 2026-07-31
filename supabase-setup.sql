@@ -713,3 +713,64 @@ end;
 $$;
 revoke execute on function public.write_audit_log(uuid, text, text, text, jsonb, jsonb, uuid) from public, anon, authenticated;
 revoke execute on function public.write_platform_audit(uuid, text, text, text, jsonb, jsonb, uuid) from public, anon, authenticated;
+
+-- ---------- Service RPC: create_organization ----------
+-- Mirrors supabase/migrations/20260731_create_organization_rpc.sql.
+create or replace function public.create_organization(
+  p_name text,
+  p_slug text default null,
+  p_primary_contact_email text default null,
+  p_plan text default 'trial',
+  p_status text default 'trial',
+  p_trial_days int default null,
+  p_owner_email text default null
+) returns public.organizations
+language plpgsql security definer set search_path = public, auth as $$
+declare
+  v_org public.organizations;
+  v_owner uuid;
+  v_slug text;
+begin
+  if not public.is_platform_admin('superadmin') then
+    raise exception 'Forbidden: platform superadmin required' using errcode = '42501';
+  end if;
+  if coalesce(trim(p_name), '') = '' then
+    raise exception 'Organization name is required' using errcode = '22023';
+  end if;
+  if p_status not in ('trial','active','past_due','suspended','cancelled','purged') then
+    raise exception 'Invalid status: %', p_status using errcode = '22023';
+  end if;
+  v_slug := lower(regexp_replace(coalesce(nullif(trim(p_slug), ''), p_name), '[^a-z0-9]+', '-', 'g'));
+  v_slug := trim(both '-' from v_slug);
+  if v_slug = '' then
+    raise exception 'Could not derive a valid slug from the name/slug provided' using errcode = '22023';
+  end if;
+  insert into public.organizations
+    (name, slug, primary_contact_email, plan, status, trial_ends_at, created_by)
+  values (
+    trim(p_name), v_slug, nullif(trim(p_primary_contact_email), ''),
+    coalesce(nullif(trim(p_plan), ''), 'trial'), p_status,
+    case when p_trial_days is not null then now() + make_interval(days => p_trial_days) end,
+    auth.uid()
+  )
+  returning * into v_org;
+  if coalesce(trim(p_owner_email), '') <> '' then
+    select id into v_owner from auth.users where email = lower(trim(p_owner_email)) limit 1;
+    if v_owner is not null then
+      insert into public.memberships
+        (organization_id, user_id, org_role, seat_type, status, invited_by)
+      values (v_org.id, v_owner, 'owner', 'licensed', 'active', auth.uid())
+      on conflict (organization_id, user_id) do nothing;
+    end if;
+  end if;
+  perform public.write_platform_audit(
+    v_org.id, 'organization.created', 'organization', v_org.id::text,
+    null, to_jsonb(v_org), null
+  );
+  return v_org;
+exception
+  when unique_violation then
+    raise exception 'An organization with slug "%" already exists', v_slug using errcode = '23505';
+end;
+$$;
+grant execute on function public.create_organization(text, text, text, text, text, int, text) to authenticated;

@@ -1,19 +1,24 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, Search } from 'lucide-react';
+import { Building2, Search, Plus } from 'lucide-react';
 import { fetchOrganizations, type OrgWithCounts } from '@/lib/platform';
 import { orgStatusClass, statusLabel } from '@/lib/orgStatus';
+import CreateOrgModal from '@/components/platform/CreateOrgModal';
 
 export default function OrganizationsPage() {
   const [orgs, setOrgs] = useState<OrgWithCounts[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setError(null);
     fetchOrganizations().then(setOrgs).catch((e) => setError(e.message));
   }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   const filtered = useMemo(() => {
     if (!orgs) return null;
@@ -38,16 +43,26 @@ export default function OrganizationsPage() {
             {orgs ? `${orgs.length} total` : 'Loading…'}
           </p>
         </div>
-        <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-blue-gray" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name or slug"
-            className="input-field pl-9 w-full sm:w-64"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-blue-gray" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name or slug"
+              className="input-field pl-9 w-full sm:w-64"
+            />
+          </div>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="btn-primary flex items-center gap-2 whitespace-nowrap"
+          >
+            <Plus size={18} /> <span className="hidden sm:inline">New organization</span>
+          </button>
         </div>
       </div>
+
+      <CreateOrgModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={load} />
 
       {error && (
         <div className="card border border-rejected/30 text-rejected text-sm">{error}</div>

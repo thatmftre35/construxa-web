@@ -7,6 +7,7 @@ import {
   rowToOrganization,
   type Organization,
   type OrganizationRow,
+  type OrgStatus,
 } from '@/types/admin';
 
 export interface OrgWithCounts extends Organization {
@@ -37,4 +38,34 @@ export async function fetchOrganizations(): Promise<OrgWithCounts[]> {
     const c = counts.get(row.id) ?? { total: 0, licensed: 0 };
     return { ...rowToOrganization(row), memberCount: c.total, licensedSeats: c.licensed };
   });
+}
+
+export interface CreateOrgInput {
+  name: string;
+  slug?: string;
+  primaryContactEmail?: string;
+  ownerEmail?: string;
+  plan?: string;
+  status?: OrgStatus;
+  trialDays?: number;
+}
+
+/**
+ * Provision an organization via the create_organization RPC (authorize +
+ * insert + seed owner + audit, atomically server-side). Throws with the RPC's
+ * message on failure (e.g. duplicate slug, not authorized).
+ */
+export async function createOrganization(input: CreateOrgInput): Promise<Organization> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.rpc('create_organization', {
+    p_name: input.name,
+    p_slug: input.slug?.trim() || null,
+    p_primary_contact_email: input.primaryContactEmail?.trim() || null,
+    p_plan: input.plan?.trim() || 'trial',
+    p_status: input.status ?? 'trial',
+    p_trial_days: input.trialDays ?? null,
+    p_owner_email: input.ownerEmail?.trim() || null,
+  });
+  if (error) throw new Error(error.message);
+  return rowToOrganization(data as OrganizationRow);
 }
