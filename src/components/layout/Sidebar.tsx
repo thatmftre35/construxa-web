@@ -8,6 +8,7 @@ import {
   PlusCircle,
   Inbox,
   Settings,
+  ShieldCheck,
   LogOut,
   X,
 } from 'lucide-react';
@@ -108,6 +109,24 @@ export default function Sidebar({ isOpen, onClose, unreadCount = 0 }: SidebarPro
               </Link>
             );
           })}
+
+          {/* Platform staff only — the internal admin center. */}
+          {profile?.platform_role && (
+            <Link
+              href="/platform"
+              onClick={onClose}
+              className={`
+                flex items-center gap-3 py-3 px-4 rounded-xl transition-colors duration-200
+                ${pathname.startsWith('/platform')
+                  ? 'bg-white/40 text-dark-navy font-semibold dark:bg-white/10 dark:text-ice-blue'
+                  : 'text-steel-blue hover:bg-white/25 hover:text-dark-navy dark:text-ice-blue/70 dark:hover:bg-white/6'
+                }
+              `}
+            >
+              <ShieldCheck size={20} />
+              <span className="flex-1">Platform Admin</span>
+            </Link>
+          )}
         </nav>
 
         {/* User profile card */}

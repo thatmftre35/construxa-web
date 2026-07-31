@@ -46,6 +46,21 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Gate the Platform Admin Center: only users with a platform_role may enter.
+  // Authoritative server-side check (RLS is the backstop for the data itself).
+  if (user && pathname.startsWith('/platform')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('platform_role')
+      .eq('id', user.id)
+      .single();
+    if (!profile?.platform_role) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
+    }
+  }
+
   return supabaseResponse;
 }
 
